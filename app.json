@@ -1,0 +1,77 @@
+{
+  "expo": {
+    "name": "Pinpals",
+    "slug": "pinpals",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "light",
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "app.pinpals",
+      "associatedDomains": [
+        "applinks:pinpals.app"
+      ],
+      "infoPlist": {
+        "NSPhotoLibraryUsageDescription": "Pinpals utilise ta galerie pour choisir ton avatar."
+      }
+    },
+    "android": {
+      "adaptiveIcon": {
+        "backgroundColor": "#FFF6EC",
+        "foregroundImage": "./assets/android-icon-foreground.png",
+        "backgroundImage": "./assets/android-icon-background.png",
+        "monochromeImage": "./assets/android-icon-monochrome.png"
+      },
+      "predictiveBackGestureEnabled": false,
+      "package": "app.pinpals",
+      "intentFilters": [
+        {
+          "action": "VIEW",
+          "autoVerify": true,
+          "data": [
+            {
+              "scheme": "https",
+              "host": "pinpals.app",
+              "pathPrefix": "/join"
+            }
+          ],
+          "category": [
+            "BROWSABLE",
+            "DEFAULT"
+          ]
+        }
+      ]
+    },
+    "web": {
+      "bundler": "metro",
+      "output": "single",
+      "favicon": "./assets/favicon.png"
+    },
+    "plugins": [
+      "expo-router",
+      "expo-status-bar",
+      "expo-font",
+      "expo-image",
+      [
+        "expo-splash-screen",
+        {
+          "image": "./assets/splash-icon.png",
+          "imageWidth": 160,
+          "backgroundColor": "#FFF6EC"
+        }
+      ],
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "Pinpals utilise ta galerie pour choisir ton avatar."
+        }
+      ],
+      "@maplibre/maplibre-react-native"
+    ],
+    "scheme": "pinpals",
+    "experiments": {
+      "typedRoutes": true
+    }
+  }
+}
