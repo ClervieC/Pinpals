@@ -62,7 +62,7 @@ function RootNavigator() {
         <Stack.Screen name="(auth)" />
       </Stack.Protected>
 
-      {/* Accessibles dans tous les états : lien d'invitation et retour du lien magique. */}
+      {/* Accessibles dans tous les états : lien d'invitation et retour du lien de confirmation d'email. */}
       <Stack.Screen name="join/[code]" />
       <Stack.Screen name="auth/callback" />
     </Stack>

@@ -14,6 +14,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+import { t, translateServerMessage } from '@/lib/i18n';
 import { colors, fonts, radius, shade } from '@/lib/theme';
 
 // --- Texte ------------------------------------------------------------------
@@ -109,7 +110,7 @@ export function ColorPicker({ options, value, onChange }: { options: string[]; v
       {options.map((c) => (
         <Pressable
           key={c}
-          accessibilityLabel={`Couleur ${c}`}
+          accessibilityLabel={t('group.color.a11y', { color: c })}
           onPress={() => onChange(c)}
           style={[styles.swatch, { backgroundColor: c }, value === c && { borderColor: shade(c, 0.35) }]}
         />
@@ -132,7 +133,7 @@ export function EmojiPicker({ options, value, onChange }: { options: string[]; v
 
 export function ErrorText({ error }: { error: unknown }) {
   if (!error) return null;
-  const message = error instanceof Error ? error.message : String(error);
+  const message = translateServerMessage(error instanceof Error ? error.message : String(error));
   return <T style={{ color: colors.danger, fontFamily: fonts.semibold }}>{message}</T>;
 }
 

@@ -8,6 +8,7 @@ import { InviteButton } from '@/components/InviteButton';
 import { GroupMap } from '@/components/map/GroupMap';
 import { MemberSheet, SHEET_HEIGHT } from '@/components/MemberSheet';
 import { ErrorText, Loading, T } from '@/components/ui';
+import { t, tn } from '@/lib/i18n';
 import { useGroup, useGroupMap } from '@/lib/queries';
 import { colors, fonts, radius, shade, tint } from '@/lib/theme';
 
@@ -24,7 +25,7 @@ export default function GroupMapScreen() {
   if (!group.data) {
     return (
       <View style={[styles.center, { paddingTop: insets.top }]}>
-        <T variant="heading">Groupe introuvable 🫥</T>
+        <T variant="heading">{t('group.notFound')}</T>
         <ErrorText error={group.error ?? map.error} />
       </View>
     );
@@ -56,12 +57,17 @@ export default function GroupMapScreen() {
               {g.name}
             </T>
             <T style={{ fontFamily: fonts.bold, fontSize: 12, color: shade(g.color, 0.55) }}>
-              {members.length} sur la carte · {g.member_count} {g.member_count > 1 ? 'membres' : 'membre'}
+              {t('group.onMap', { count: members.length })} · {tn('common.members', g.member_count)}
             </T>
           </View>
         </View>
+        <Link href={{ pathname: '/group/[id]/memories', params: { id } }} asChild>
+          <Pressable style={styles.round} accessibilityLabel={t('memories.groupTitle')}>
+            <T style={{ fontSize: 18 }}>📔</T>
+          </Pressable>
+        </Link>
         <Link href={{ pathname: '/group/[id]/settings', params: { id } }} asChild>
-          <Pressable style={styles.round} accessibilityLabel="Réglages du groupe">
+          <Pressable style={styles.round} accessibilityLabel={t('settings.title')}>
             <T style={{ fontSize: 18 }}>⚙️</T>
           </Pressable>
         </Link>
@@ -69,11 +75,9 @@ export default function GroupMapScreen() {
 
       {alone ? (
         <Animated.View entering={FadeInDown.delay(600).springify()} style={[styles.empty, { bottom: insets.bottom + 20 }]}>
-          <T variant="heading">Invite ta promo ✨</T>
-          <T style={{ color: colors.inkSoft }}>
-            Tu es tout·e seul·e sur la carte pour l&apos;instant. Partage le lien et regarde les pins tomber.
-          </T>
-          <InviteButton group={g} label="Partager le lien d'invitation" />
+          <T variant="heading">{t('group.alone.title')}</T>
+          <T style={{ color: colors.inkSoft }}>{t('group.alone.body')}</T>
+          <InviteButton group={g} label={t('group.alone.cta')} />
         </Animated.View>
       ) : null}
 

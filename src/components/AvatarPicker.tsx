@@ -3,6 +3,7 @@ import { useState } from 'react';
 import { ActivityIndicator, Pressable, StyleSheet, View } from 'react-native';
 
 import { useUserId } from '@/lib/auth';
+import { t } from '@/lib/i18n';
 import { uploadAvatar } from '@/lib/queries';
 import { colors } from '@/lib/theme';
 
@@ -47,7 +48,7 @@ export function AvatarPicker({ name, url, color, onChange }: Props) {
 
   return (
     <View style={styles.wrap}>
-      <Pressable onPress={pick} disabled={uploading} accessibilityLabel="Changer d'avatar">
+      <Pressable onPress={pick} disabled={uploading} accessibilityLabel={t('profile.changeAvatar')}>
         <Avatar name={name || '?'} url={url} color={color} size={120} ring={6} />
         <View style={styles.badge}>
           {uploading ? <ActivityIndicator size="small" color={colors.ink} /> : <T style={{ fontSize: 16 }}>📷</T>}

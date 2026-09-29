@@ -2,6 +2,7 @@ import { router } from 'expo-router';
 
 import { GroupForm } from '@/components/GroupForm';
 import { Screen, T } from '@/components/ui';
+import { t } from '@/lib/i18n';
 import { useCreateGroup } from '@/lib/queries';
 
 export default function NewGroup() {
@@ -9,9 +10,9 @@ export default function NewGroup() {
 
   return (
     <Screen scroll>
-      <T>Un groupe = une carte. Tu pourras inviter tout le monde avec un lien juste après.</T>
+      <T>{t('group.new.body')}</T>
       <GroupForm
-        submitLabel="Créer le groupe"
+        submitLabel={t('group.new.submit')}
         loading={create.isPending}
         error={create.error}
         onSubmit={(values) =>

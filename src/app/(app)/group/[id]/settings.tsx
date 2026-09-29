@@ -9,6 +9,7 @@ import { InviteButton } from '@/components/InviteButton';
 import { Button, ErrorText, Loading, Screen, T } from '@/components/ui';
 import { useUserId } from '@/lib/auth';
 import { countryFlag } from '@/lib/geo';
+import { t } from '@/lib/i18n';
 import { inviteUrl } from '@/lib/invite';
 import {
   useGroup,
@@ -47,18 +48,18 @@ export default function GroupSettings() {
     <Screen scroll>
       <View style={[styles.invite, { backgroundColor: tint(g.color, 0.4) }]}>
         <T variant="label" style={{ color: shade(g.color, 0.55) }}>
-          Code d&apos;invitation
+          {t('settings.inviteCode')}
         </T>
         <Pressable onPress={copy}>
           <T style={styles.code}>{g.invite_code}</T>
           <T variant="caption" style={{ textAlign: 'center' }}>
-            {copied ? 'Lien copié ✅' : 'Touche pour copier le lien'}
+            {copied ? t('common.linkCopied') : t('settings.tapToCopy')}
           </T>
         </Pressable>
         <InviteButton group={g} />
         {isAdmin ? (
           <Button
-            label="Générer un nouveau code"
+            label={t('settings.regenerate')}
             kind="ghost"
             loading={regenerate.isPending}
             onPress={() => regenerate.mutate()}
@@ -69,10 +70,10 @@ export default function GroupSettings() {
 
       {isAdmin ? (
         <View style={{ gap: 12 }}>
-          <T variant="heading">Le groupe</T>
+          <T variant="heading">{t('settings.group')}</T>
           <GroupForm
             initial={{ name: g.name, emoji: g.emoji, color: g.color }}
-            submitLabel="Enregistrer"
+            submitLabel={t('common.save')}
             loading={update.isPending}
             error={update.error}
             onSubmit={(values) => update.mutate(values)}
@@ -81,7 +82,7 @@ export default function GroupSettings() {
       ) : null}
 
       <View style={{ gap: 10 }}>
-        <T variant="heading">Membres ({members.data?.length ?? g.member_count})</T>
+        <T variant="heading">{t('settings.members', { count: members.data?.length ?? g.member_count })}</T>
         <ErrorText error={members.error ?? remove.error} />
         {members.data?.map((m) => (
           <View key={m.profile.id} style={styles.member}>
@@ -89,16 +90,16 @@ export default function GroupSettings() {
             <View style={{ flex: 1 }}>
               <T style={{ fontFamily: fonts.bold }}>
                 {m.profile.display_name}
-                {m.profile.id === uid ? ' (toi)' : ''}
+                {m.profile.id === uid ? t('settings.you') : ''}
                 {m.role === 'admin' ? ' 👑' : ''}
               </T>
               <T variant="caption">
-                {m.profile.city ? `${countryFlag(m.profile.country_code)} ${m.profile.city}` : 'Pas encore de pin'}
+                {m.profile.city ? `${countryFlag(m.profile.country_code)} ${m.profile.city}` : t('settings.noPin')}
               </T>
             </View>
             {isAdmin && m.profile.id !== uid ? (
-              <Pressable onPress={() => remove.mutate(m.profile.id)} hitSlop={8} accessibilityLabel="Retirer du groupe">
-                <T style={{ color: colors.danger, fontFamily: fonts.bold }}>Retirer</T>
+              <Pressable onPress={() => remove.mutate(m.profile.id)} hitSlop={8} accessibilityLabel={t('settings.removeA11y')}>
+                <T style={{ color: colors.danger, fontFamily: fonts.bold }}>{t('settings.remove')}</T>
               </Pressable>
             ) : null}
           </View>
@@ -107,8 +108,8 @@ export default function GroupSettings() {
 
       <ErrorText error={leave.error} />
       <ConfirmButton
-        label="Quitter le groupe"
-        confirmLabel="Sûr·e ? Touche encore pour quitter"
+        label={t('settings.leave')}
+        confirmLabel={t('settings.leaveConfirm')}
         loading={leave.isPending}
         onConfirm={() => leave.mutate(undefined, { onSuccess: () => router.dismissTo('/') })}
       />

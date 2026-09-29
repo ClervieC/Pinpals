@@ -78,4 +78,72 @@ await expectErr('A avatar upload in B folder', A, `insert into storage.objects(b
 await expectErr('anon cannot call get_group_map', null, `select * from get_group_map('${gid}')`);
 await expectOk('A upsert own profile (PostgREST style)', A, `insert into profiles(id, display_name, pin_color) values ('${A}','Alice2','#FFD6A5') on conflict(id) do update set id=excluded.id, display_name=excluded.display_name, pin_color=excluded.pin_color returning display_name`, r=>r[0].display_name==='Alice2');
 await expectErr('A cannot move profile id', A, `update profiles set id='00000000-0000-0000-0000-0000000000ff' where id='${A}'`);
+
+// --- Fiche, adresse, notes privées, souvenirs --------------------------------
+console.log('\n— friendship');
+const [{create_group: g2}] = await expectOk('A creates group 2', A, `select create_group('Amis','🌸','#FFB5C2')`);
+const code2 = (await as(A, `select invite_code from groups where id='${g2}'`)).rows[0].invite_code;
+await expectOk('B joins group 2', B, `select join_group('${code2}')`);
+await expectOk('A fills birthday + favorites', A, `update profiles set birthday_day=12, birthday_month=3, favorites='{"food":"sushi"}', wishlist='un vinyle' where id='${A}' returning birthday_day`, r=>r[0].birthday_day===12);
+await expectErr('birthday day without month rejected', A, `update profiles set birthday_month=null where id='${A}'`);
+await expectOk('B sees A birthday', B, `select birthday_day, birthday_month, favorites, wishlist from profiles where id='${A}'`, r=>r.length===1 && r[0].birthday_month===3 && r[0].favorites.food==='sushi');
+await expectOk('C cannot see A card', C, `select * from profiles where id='${A}'`, r=>r.length===0);
+
+await expectOk('A saves address', A, `insert into addresses(user_id,line1,city,postal_code) values ('${A}','12 rue des Lilas','Paris','75011')`);
+await expectErr('A cannot write B address', A, `insert into addresses(user_id,line1,city) values ('${B}','x','y')`);
+await expectOk('B cannot see A address before share', B, `select * from addresses where user_id='${A}'`, r=>r.length===0);
+await expectErr('A cannot share address with outsider C', A, `insert into address_shares(owner_id,viewer_id) values ('${A}','${C}')`);
+await expectErr('B cannot grant himself A address', B, `insert into address_shares(owner_id,viewer_id) values ('${A}','${B}')`);
+await expectOk('A shares address with B', A, `insert into address_shares(owner_id,viewer_id) values ('${A}','${B}')`);
+await expectOk('B sees A address', B, `select line1 from addresses where user_id='${A}'`, r=>r.length===1 && r[0].line1==='12 rue des Lilas');
+await expectOk('C still cannot see A address', C, `select * from addresses`, r=>r.length===0);
+await expectOk('B cannot edit A address (no-op)', B, `update addresses set city='hack' where user_id='${A}' returning *`, r=>r.length===0);
+await expectOk('B cannot delete the share (no-op)', B, `delete from address_shares where owner_id='${A}' returning *`, r=>r.length===0);
+
+await expectOk('A writes private note on B', A, `insert into friend_notes(author_id,friend_id,gift_ideas) values ('${A}','${B}','un livre de cuisine')`);
+await expectOk('A upserts note (PostgREST style)', A, `insert into friend_notes(author_id,friend_id,gift_ideas) values ('${A}','${B}','une plante') on conflict(author_id,friend_id) do update set author_id=excluded.author_id, friend_id=excluded.friend_id, gift_ideas=excluded.gift_ideas returning gift_ideas`, r=>r[0].gift_ideas==='une plante');
+await expectOk('B cannot read notes about him', B, `select * from friend_notes`, r=>r.length===0);
+await expectErr('A cannot note an outsider', A, `insert into friend_notes(author_id,friend_id,notes) values ('${A}','${C}','x')`);
+await expectErr('A cannot forge a note as B', A, `insert into friend_notes(author_id,friend_id,notes) values ('${B}','${A}','x')`);
+
+const [{create_memory: m1}] = await expectOk('A creates duo trip with B', A, `select create_memory('Road trip Lisbonne','trip','Trop bien','Lisbonne','2025-07-01','2025-07-10',null,array['${B}']::uuid[])`);
+await expectOk('B sees the trip', B, `select title, kind from memories where id='${m1}'`, r=>r.length===1 && r[0].kind==='trip');
+await expectOk('C cannot see the trip', C, `select * from memories`, r=>r.length===0);
+await expectErr('A cannot tag outsider C', A, `select create_memory('x','memory',null,null,null,null,null,array['${C}']::uuid[])`);
+await expectErr('A cannot create memory without audience', A, `select create_memory('solo')`);
+await expectErr('A cannot insert memory directly', A, `insert into memories(author_id,title) values ('${A}','x')`);
+await expectErr('bad date range rejected', A, `select create_memory('x','trip',null,null,'2025-07-10','2025-07-01',null,array['${B}']::uuid[])`);
+await expectErr('C cannot post in group 2', C, `select create_memory('x','memory',null,null,null,null,'${g2}','{}')`);
+const [{create_memory: m2}] = await expectOk('B creates group memory', B, `select create_memory('Soirée','memory',null,null,'2025-12-31',null,'${g2}','{}')`);
+await expectOk('A sees group memory', A, `select * from memories where id='${m2}'`, r=>r.length===1);
+await expectOk('B edits own memory', B, `update memories set title='Soirée du nouvel an' where id='${m2}' returning title`, r=>r.length===1);
+await expectOk('A cannot edit B memory (no-op)', A, `update memories set title='hack' where id='${m2}' returning *`, r=>r.length===0);
+await expectErr('B cannot move memory to another group', B, `update memories set group_id='${gid}' where id='${m2}'`);
+await expectErr('B cannot tag people directly', B, `insert into memory_people(memory_id,user_id) values ('${m1}','${C}')`);
+await expectErr('B cannot retag A trip', B, `select set_memory_people('${m1}', array['${B}']::uuid[])`);
+
+await expectOk('B adds photo to A trip (shared scrapbook)', B, `insert into storage.objects(bucket_id,name) values ('memories','${m1}/b1.jpg')`);
+await expectOk('B registers the photo', B, `insert into memory_photos(memory_id,path) values ('${m1}','${m1}/b1.jpg')`);
+await expectErr('C cannot upload into A trip', C, `insert into storage.objects(bucket_id,name) values ('memories','${m1}/c1.jpg')`);
+await expectErr('C cannot register a photo', C, `insert into memory_photos(memory_id,path,uploaded_by) values ('${m1}','${m1}/c1.jpg','${C}')`);
+await expectErr('photo path must match memory', B, `insert into memory_photos(memory_id,path) values ('${m1}','${m2}/x.jpg')`);
+await expectErr('bad folder name rejected', B, `insert into storage.objects(bucket_id,name) values ('memories','not-a-uuid/x.jpg')`);
+await expectOk('C cannot list trip photos', C, `select * from storage.objects where bucket_id='memories'`, r=>r.length===0);
+await expectOk('A (author) sees B photo', A, `select * from memory_photos where memory_id='${m1}'`, r=>r.length===1);
+await expectOk('get_memories for A: 2', A, `select * from get_memories()`, r=>r.length===2);
+await expectOk('get_memories filtered by friend B', A, `select title, photo_count, cover_path, people from get_memories(null,'${B}')`, r=>r.length===2 && r.some(m=>Number(m.photo_count)===1 && m.cover_path===`${m1}/b1.jpg`));
+await expectOk('get_memories filtered by group', A, `select * from get_memories('${g2}')`, r=>r.length===1);
+await expectOk('C get_memories empty', C, `select * from get_memories()`, r=>r.length===0);
+await expectOk('A (author) deletes B photo', A, `delete from storage.objects where bucket_id='memories' and name='${m1}/b1.jpg' returning *`, r=>r.length===1);
+
+// Quand B quitte le groupe, l'adresse partagée et les souvenirs de groupe disparaissent pour lui.
+const [{create_memory: m3}] = await expectOk('A creates group memory', A, `select create_memory('Pique-nique','memory',null,null,null,null,'${g2}','{}')`);
+await expectOk('B leaves group 2', B, `select leave_group('${g2}')`);
+await expectOk('B no longer sees A address', B, `select * from addresses`, r=>r.length===0);
+await expectOk('B no longer sees A group memory', B, `select * from memories where id='${m3}'`, r=>r.length===0);
+await expectOk('B still sees his own group memory (author)', B, `select * from memories where id='${m2}'`, r=>r.length===1);
+await expectOk('B still sees duo trip (tagged)', B, `select * from memories where id='${m1}'`, r=>r.length===1);
+await expectOk('A deletes her trip', A, `delete from memories where id='${m1}' returning *`, r=>r.length===1);
+await expectErr('anon cannot read memories', null, `select * from memories`);
+await expectErr('anon cannot read addresses', null, `select * from addresses`);
 console.log(fails ? `\n${fails} FAILED` : '\nALL PASSED');

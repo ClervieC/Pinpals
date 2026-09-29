@@ -6,6 +6,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Avatar } from '@/components/Avatar';
 import { Button, ErrorText, Field, T } from '@/components/ui';
 import { countryFlag } from '@/lib/geo';
+import { t, tn } from '@/lib/i18n';
 import { pendingInvite } from '@/lib/invite';
 import { useMyGroups, useMyProfile } from '@/lib/queries';
 import { colors, fonts, radius, shade, tint } from '@/lib/theme';
@@ -28,15 +29,15 @@ export default function Home() {
     <SafeAreaView style={styles.screen} edges={['top']}>
       <View style={styles.header}>
         <View style={{ flex: 1 }}>
-          <T variant="title">Mes groupes</T>
+          <T variant="title">{t('home.title')}</T>
           {profile?.city ? (
             <T variant="caption">
-              {countryFlag(profile.country_code)} Tu es à {profile.city}
+              {countryFlag(profile.country_code)} {t('home.youAreIn', { city: profile.city })}
             </T>
           ) : null}
         </View>
         <Link href="/me" asChild>
-          <Pressable accessibilityLabel="Mon profil">
+          <Pressable accessibilityLabel={t('me.title')}>
             {profile ? <Avatar name={profile.display_name} url={profile.avatar_url} color={profile.pin_color} size={48} /> : null}
           </Pressable>
         </Link>
@@ -53,7 +54,7 @@ export default function Home() {
         ListFooterComponent={
           (groups.data?.length ?? 0) > 0 ? (
             <View style={{ gap: 12, marginTop: 8 }}>
-              <Button label="＋ Créer un groupe" kind="ghost" onPress={() => router.push('/group/new')} />
+              <Button label={t('home.createGroup')} kind="ghost" onPress={() => router.push('/group/new')} />
               <JoinByCode />
             </View>
           ) : null
@@ -75,7 +76,7 @@ function GroupCard({ group }: { group: MyGroup }) {
             {group.name}
           </T>
           <T style={{ fontFamily: fonts.bold, color: shade(group.color, 0.5) }}>
-            {group.member_count} {group.member_count > 1 ? 'membres' : 'membre'}
+            {tn('common.members', group.member_count)}
           </T>
         </View>
         <T style={{ fontSize: 20, color: shade(group.color, 0.4) }}>›</T>
@@ -89,12 +90,10 @@ function EmptyGroups() {
     <View style={styles.empty}>
       <T style={{ fontSize: 56 }}>🗺️</T>
       <T variant="heading" style={{ textAlign: 'center' }}>
-        Ta carte est encore vide
+        {t('home.empty.title')}
       </T>
-      <T style={{ textAlign: 'center', color: colors.inkSoft }}>
-        Crée un groupe pour ta promo ou tes amis d&apos;enfance, puis partage le lien d&apos;invitation.
-      </T>
-      <Button label="Créer mon premier groupe ✨" onPress={() => router.push('/group/new')} style={{ alignSelf: 'stretch' }} />
+      <T style={{ textAlign: 'center', color: colors.inkSoft }}>{t('home.empty.body')}</T>
+      <Button label={t('home.empty.cta')} onPress={() => router.push('/group/new')} style={{ alignSelf: 'stretch' }} />
       <JoinByCode />
     </View>
   );
@@ -108,14 +107,14 @@ function JoinByCode() {
       <Field
         value={code}
         onChangeText={setCode}
-        placeholder="Code d'invitation"
+        placeholder={t('home.codePlaceholder')}
         autoCapitalize="characters"
         autoCorrect={false}
         maxLength={8}
         style={{ flex: 1 }}
       />
       <Button
-        label="Rejoindre"
+        label={t('home.join')}
         kind="ghost"
         disabled={clean.length < 8}
         onPress={() => router.push({ pathname: '/join/[code]', params: { code: clean } })}

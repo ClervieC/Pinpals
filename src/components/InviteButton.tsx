@@ -2,13 +2,14 @@ import * as Clipboard from 'expo-clipboard';
 import { useState } from 'react';
 import { Platform, Share } from 'react-native';
 
+import { t } from '@/lib/i18n';
 import { inviteMessage, inviteUrl } from '@/lib/invite';
 import type { MyGroup } from '@/lib/types';
 
 import { Button } from './ui';
 
 /** Partage natif (WhatsApp, Messages…) ; sur le web, copie le lien. */
-export function InviteButton({ group, label = 'Inviter des amis 💌' }: { group: MyGroup; label?: string }) {
+export function InviteButton({ group, label = t('invite.button') }: { group: MyGroup; label?: string }) {
   const [copied, setCopied] = useState(false);
 
   async function invite() {
@@ -30,5 +31,5 @@ export function InviteButton({ group, label = 'Inviter des amis 💌' }: { group
     await Share.share({ message });
   }
 
-  return <Button label={copied ? 'Lien copié ✅' : label} color={group.color} onPress={invite} />;
+  return <Button label={copied ? t('common.linkCopied') : label} color={group.color} onPress={invite} />;
 }

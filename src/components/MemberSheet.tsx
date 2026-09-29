@@ -1,15 +1,17 @@
 import BottomSheet, { BottomSheetView } from '@gorhom/bottom-sheet';
 import * as Linking from 'expo-linking';
+import { router } from 'expo-router';
 import { useEffect, useRef } from 'react';
 import { type NativeScrollEvent, type NativeSyntheticEvent, Pressable, StyleSheet, useWindowDimensions, View } from 'react-native';
 import { FlatList } from 'react-native-gesture-handler';
 
 import { countryFlag, monthYear } from '@/lib/geo';
+import { t } from '@/lib/i18n';
 import { colors, fonts, radius, shade, tint } from '@/lib/theme';
 import type { MapMember, SocialKey } from '@/lib/types';
 
 import { Avatar } from './Avatar';
-import { T } from './ui';
+import { Button, T } from './ui';
 
 export const SHEET_HEIGHT = 330;
 
@@ -102,7 +104,7 @@ function MemberCard({ member, width }: { member: MapMember; width: number }) {
             {countryFlag(member.country_code)} {member.city}
             {member.country ? `, ${member.country}` : ''}
           </T>
-          {since ? <T variant="caption">à {member.city} depuis {since}</T> : null}
+          {since ? <T variant="caption">{t('member.livesSince', { city: member.city ?? '', date: since })}</T> : null}
         </View>
       </View>
 
@@ -116,6 +118,13 @@ function MemberCard({ member, width }: { member: MapMember; width: number }) {
           {member.bio}
         </T>
       ) : null}
+
+      <Button
+        label={t('member.openCard')}
+        color={member.pin_color}
+        onPress={() => router.push({ pathname: '/friend/[id]', params: { id: member.id } })}
+        style={{ minHeight: 42 }}
+      />
 
       {socials.length > 0 ? (
         <View style={styles.socials}>
@@ -137,10 +146,10 @@ function MemberCard({ member, width }: { member: MapMember; width: number }) {
 }
 
 export const SOCIALS: Record<SocialKey, { label: string; icon: string; placeholder: string; url: (v: string) => string }> = {
-  instagram: { label: 'Instagram', icon: '📸', placeholder: '@pseudo', url: (v) => `https://instagram.com/${v.replace(/^@/, '')}` },
-  linkedin: { label: 'LinkedIn', icon: '💼', placeholder: 'pseudo ou URL', url: (v) => `https://www.linkedin.com/in/${v}` },
-  x: { label: 'X', icon: '🐦', placeholder: '@pseudo', url: (v) => `https://x.com/${v.replace(/^@/, '')}` },
-  website: { label: 'Site', icon: '🌐', placeholder: 'monsite.fr', url: (v) => `https://${v}` },
+  instagram: { label: 'Instagram', icon: '📸', placeholder: t('social.handle'), url: (v) => `https://instagram.com/${v.replace(/^@/, '')}` },
+  linkedin: { label: 'LinkedIn', icon: '💼', placeholder: t('social.handleOrUrl'), url: (v) => `https://www.linkedin.com/in/${v}` },
+  x: { label: 'X', icon: '🐦', placeholder: t('social.handle'), url: (v) => `https://x.com/${v.replace(/^@/, '')}` },
+  website: { label: t('social.website'), icon: '🌐', placeholder: t('social.sitePlaceholder'), url: (v) => `https://${v}` },
 };
 
 function socialLinks(socials: MapMember['socials']) {

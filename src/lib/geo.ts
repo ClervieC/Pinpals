@@ -1,3 +1,4 @@
+import { lang, monthName } from './i18n';
 import type { City } from './types';
 
 type PhotonFeature = {
@@ -17,7 +18,7 @@ export async function searchCities(query: string, signal?: AbortSignal): Promise
   const q = query.trim();
   if (q.length < 2) return [];
 
-  const params = new URLSearchParams({ q, limit: '8', lang: 'fr', layer: 'city' });
+  const params = new URLSearchParams({ q, limit: '8', lang, layer: 'city' });
   const res = await fetch(`https://photon.komoot.io/api/?${params}`, { signal });
   if (!res.ok) throw new Error(`Photon ${res.status}`);
   const json: { features: PhotonFeature[] } = await res.json();
@@ -49,11 +50,9 @@ export function countryFlag(code: string | null | undefined): string {
   return String.fromCodePoint(...[...code.toUpperCase()].map((c) => 0x1f1a5 + c.charCodeAt(0)));
 }
 
-const MONTHS = ['janvier', 'février', 'mars', 'avril', 'mai', 'juin', 'juillet', 'août', 'septembre', 'octobre', 'novembre', 'décembre'];
-
-/** "mars 2026" */
+/** "mars 2026" / "March 2026" */
 export function monthYear(iso: string | null | undefined): string | null {
   if (!iso) return null;
   const d = new Date(iso);
-  return `${MONTHS[d.getMonth()]} ${d.getFullYear()}`;
+  return `${monthName(d.getMonth())} ${d.getFullYear()}`;
 }

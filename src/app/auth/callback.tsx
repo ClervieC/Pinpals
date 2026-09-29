@@ -3,13 +3,14 @@ import { useEffect, useState } from 'react';
 import { View } from 'react-native';
 
 import { Button, ErrorText, Loading, Screen, T } from '@/components/ui';
+import { t } from '@/lib/i18n';
 import { supabase } from '@/lib/supabase';
 
-/** Retour du lien magique (flow PKCE) : pinpals://auth/callback?code=… */
+/** Retour du lien de confirmation d'email (flow PKCE) : pinpals://auth/callback?code=… */
 export default function AuthCallback() {
   const params = useLocalSearchParams<{ code?: string; error_description?: string }>();
   const [exchangeError, setExchangeError] = useState<string | null>(null);
-  const error = exchangeError ?? params.error_description ?? (params.code ? null : 'Lien invalide ou expiré.');
+  const error = exchangeError ?? params.error_description ?? (params.code ? null : t('callback.invalid'));
 
   useEffect(() => {
     if (!params.code) return;
@@ -24,10 +25,10 @@ export default function AuthCallback() {
   return (
     <Screen>
       <View style={{ flex: 1, justifyContent: 'center', gap: 16 }}>
-        <T variant="title">Oups 🙈</T>
+        <T variant="title">{t('callback.title')}</T>
         <ErrorText error={error} />
-        <T>Le lien doit être ouvert sur l&apos;appareil où tu l&apos;as demandé. Tu peux aussi saisir le code reçu par email.</T>
-        <Button label="Revenir à la connexion" onPress={() => router.replace('/sign-in')} />
+        <T>{t('callback.body')}</T>
+        <Button label={t('callback.back')} onPress={() => router.replace('/sign-in')} />
       </View>
     </Screen>
   );

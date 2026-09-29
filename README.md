@@ -37,7 +37,7 @@ Sans `EXPO_PUBLIC_MAPTILER_KEY`, la carte utilise les tuiles démo de MapLibre (
    - `http://localhost:8081/auth/callback` (dev web)
 
    Sur le self-hosted, c'est `ADDITIONAL_REDIRECT_URLS` dans le `.env` de Docker.
-4. **Template email « Magic Link ».** Ajoute `{{ .Token }}` au template pour que l'utilisateur puisse aussi taper le code à 6 chiffres. C'est pratique quand le lien s'ouvre dans un autre navigateur que celui de l'app.
+4. **Connexion email + mot de passe.** Dans Authentication → Sign In / Providers → Email, vérifie que la longueur minimale du mot de passe est à 6 (comme l'app, valeur par défaut de Supabase). Si « Confirm email » est activé, l'inscription envoie un lien de confirmation qui revient sur `/auth/callback` : les redirect URLs ci-dessus doivent donc être en place. En dev, tu peux désactiver « Confirm email » pour être connecté dès l'inscription.
 
 ## Liens d'invitation
 
@@ -56,7 +56,7 @@ L'écran [join/[code]](src/app/join/[code].tsx) marche même sans compte. Il aff
 ```
 src/app/
   _layout.tsx               gardes : non connecté → (auth), sans ville → (onboarding), sinon (app)
-  (auth)/sign-in.tsx        lien magique + code OTP
+  (auth)/sign-in.tsx        connexion / inscription email + mot de passe
   (onboarding)/profile.tsx  nom, avatar, couleur du pin
   (onboarding)/location.tsx ville (Photon)
   (app)/index.tsx           mes groupes
@@ -65,7 +65,7 @@ src/app/
   (app)/group/new.tsx
   (app)/me.tsx              profil complet, déménagement, déconnexion
   join/[code].tsx           invitation (accessible sans compte)
-  auth/callback.tsx         retour du lien magique (PKCE)
+  auth/callback.tsx         retour du lien de confirmation d'email (PKCE)
 src/components/map/         GroupMap.native / GroupMap.web, pins, clusters, style pastel
 src/lib/                    client Supabase, requêtes TanStack, géocodage, thème
 supabase/migrations/        schéma, RLS, RPC, bucket avatars

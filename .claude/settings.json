@@ -1,4 +1,46 @@
 {
+  "permissions": {
+    "allow": [
+      "Bash(npm install *)",
+      "Bash(grep -n \"E401\\\\|401\\\\|GET\\\\|fetch\" /Users/clervie/.npm/_logs/2026-09-29T15_46_30_583Z-debug-0.log | tail -8; cat .npmrc ~/.npmrc 2>/dev/null | sed -E 's/\\(_authToken|_auth|_password\\)=.*/\\\\1=<redacted>/'; grep -o '\"resolved\": \"https://[^/]*' package-lock.json | sort | uniq -c)",
+      "Read(//Users/clervie/.npm/_logs/**)",
+      "Read(//Users/clervie/**)",
+      "Bash(npx expo *)",
+      "Bash(break)",
+      "Bash(curl -s -o /dev/null -w \"%{http_code}\\\\n\" http://localhost:8081/)",
+      "Bash(curl -s -o /dev/null http://localhost:8083/)",
+      "Bash(curl -s http://localhost:8083/)",
+      "Read(//Applications/Google Chrome.app/Contents/MacOS/**)",
+      "Bash('/Applications/Google Chrome.app/Contents/MacOS/Google Chrome' --headless=new --disable-gpu --window-size=420,860 --virtual-time-budget=15000 --screenshot=/private/tmp/claude-501/-Users-clervie-Desktop-Projects-Pinpals/10b1a94c-a3c1-4a26-8259-09da233db925/scratchpad/shot.png http://localhost:8083/)",
+      "Bash(git check-ignore *)",
+      "Bash(pkill -f \"expo start --web --port 8083\")",
+      "Bash(xargs kill)",
+      "Bash(curl -s -o /dev/null -w \"bundle:%{http_code}\\\\n\" --max-time 170 \"http://localhost:8083/node_modules/expo-router/entry.bundle?platform=web&dev=true\")",
+      "Bash(curl -s --max-time 120 \"http://localhost:8083/node_modules/expo-router/entry.bundle?platform=web&dev=true\")",
+      "Bash(curl -s -o /dev/null -w \"supabase:%{http_code}\\\\n\" -H \"apikey: sb_publishable_A5Ii1HP8PBDvTokIdTuZMw_-rB8camf\" https://zixelxtnycegifduercg.supabase.co/auth/v1/settings)",
+      "Bash(curl -s --max-time 170 \"http://localhost:8083/node_modules/expo-router/entry.bundle?platform=web&dev=true\")",
+      "Bash(npm config *)",
+      "Bash(npx tsc *)",
+      "Bash(echo \"tsc=$?\")",
+      "Bash(curl -s -H \"apikey: sb_publishable_A5Ii1HP8PBDvTokIdTuZMw_-rB8camf\" https://zixelxtnycegifduercg.supabase.co/auth/v1/settings)",
+      "Bash(curl -s -X POST -H \"apikey: sb_publishable_A5Ii1HP8PBDvTokIdTuZMw_-rB8camf\" -H \"Content-Type: application/json\" -d '{\"email\":\"nobody-pinpals-test@example.com\",\"password\":\"wrongpass123\"}' \"https://zixelxtnycegifduercg.supabase.co/auth/v1/token?grant_type=password\")",
+      "Bash(curl -s -o /dev/null -w \"%{http_code}\\\\n\" --max-time 120 \"http://localhost:8083/node_modules/expo-router/entry.bundle?platform=web&dev=true\")",
+      "Bash('/Applications/Google Chrome.app/Contents/MacOS/Google Chrome' --headless=new --disable-gpu --window-size=500,900 --virtual-time-budget=15000 --screenshot=/private/tmp/claude-501/-Users-clervie-Desktop-Projects-Pinpals/10b1a94c-a3c1-4a26-8259-09da233db925/scratchpad/shot2.png http://localhost:8083/)",
+      "WebFetch(domain:docs.expo.dev)",
+      "Bash(python3 -)",
+      "Bash(grep -rnE \"^\\\\s+[A-Za-zÀ-ÿ][^<>{}=;\\(\\)]*[a-z]{3}[^<>{}=;\\(\\)]*$\" src/app src/components)",
+      "Bash(sed -i '' 's/^const MIN_PASSWORD = 8;/const MIN_PASSWORD = 6;/' \"src/app/\\(auth\\)/sign-in.tsx\")",
+      "Bash(sed -i '' 's/fixe la longueur minimale du mot de passe à 8 \\(comme l.app\\)/vérifie que la longueur minimale du mot de passe est à 6 \\(comme l'\"'\"'app, valeur par défaut de Supabase\\)/' README.md)",
+      "Bash(pkill -f \"user-data-dir=/private/tmp/claude-501\")",
+      "Bash(npm run *)",
+      "Bash(git mv *)",
+      "Bash(grep -o \"setWorkerUrl.\\\\{0,200\\\\}\" maplibre-gl.d.ts)",
+      "Bash(grep -o \"import[^;]*from\\\\s*\\\\\"[^\\\\\"]*\\\\\"\\\\|from\\\\`[^\\\\`]*\\\\`\\\\|from'[^']*'\\\\|from\\\\\"[^\\\\\"]*\\\\\"\" maplibre-gl-worker.mjs)",
+      "Bash(node scripts/copy-maplibre-worker.mjs)",
+      "Bash(curl -s -o /dev/null -w \"%{http_code} %{content_type}\\\\n\" http://localhost:8083/maplibre/maplibre-gl-worker.mjs)",
+      "Bash(python3 -c \"import json;print\\(json.load\\(open\\('app.json'\\)\\)['expo'].get\\('web'\\)\\)\")"
+    ]
+  },
   "enabledPlugins": {
     "expo@claude-plugins-official": true
   }

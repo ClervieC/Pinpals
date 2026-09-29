@@ -1,5 +1,6 @@
 import { Stack } from 'expo-router';
 
+import { t } from '@/lib/i18n';
 import { colors, fonts } from '@/lib/theme';
 
 export default function AppLayout() {
@@ -15,11 +16,16 @@ export default function AppLayout() {
         contentStyle: { backgroundColor: colors.cream },
       }}
     >
-      <Stack.Screen name="index" />
+      <Stack.Screen name="(tabs)" />
       <Stack.Screen name="group/[id]/index" />
-      <Stack.Screen name="group/[id]/settings" options={{ headerShown: true, title: 'Réglages du groupe' }} />
-      <Stack.Screen name="group/new" options={{ headerShown: true, title: 'Nouveau groupe', presentation: 'modal' }} />
-      <Stack.Screen name="me" options={{ headerShown: true, title: 'Mon profil' }} />
+      <Stack.Screen name="group/[id]/memories" options={{ headerShown: true, title: t('memories.groupTitle') }} />
+      <Stack.Screen name="friend/[id]" options={{ headerShown: true, title: '' }} />
+      <Stack.Screen name="memory/[id]" options={{ headerShown: true, title: '' }} />
+      <Stack.Screen name="memory/new" options={{ headerShown: true, title: t('memory.new.title'), presentation: 'modal' }} />
+      <Stack.Screen name="memory/edit/[id]" options={{ headerShown: true, title: t('memory.edit.title'), presentation: 'modal' }} />
+      <Stack.Screen name="group/[id]/settings" options={{ headerShown: true, title: t('settings.title') }} />
+      <Stack.Screen name="group/new" options={{ headerShown: true, title: t('group.new.title'), presentation: 'modal' }} />
+      <Stack.Screen name="me" options={{ headerShown: true, title: t('me.title') }} />
     </Stack>
   );
 }

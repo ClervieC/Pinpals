@@ -6,12 +6,17 @@ import { createPortal } from 'react-dom';
 import { ActivityIndicator, Pressable, StyleSheet, View } from 'react-native';
 
 import { ErrorText } from '@/components/ui';
+import { t } from '@/lib/i18n';
 import { colors } from '@/lib/theme';
 
 import { usePastelStyle } from './pastelStyle';
 import { ClusterPin, MemberPin } from './Pins';
 import { type GroupMapProps, initialView } from './types';
 import { useClusters } from './useClusters';
+
+// Le worker est servi depuis public/ (voir scripts/copy-maplibre-worker.mjs) : dans le bundle
+// Metro, maplibre-gl ne peut pas le retrouver à côté de son propre script.
+maplibregl.setWorkerUrl('/maplibre/maplibre-gl-worker.mjs');
 
 type Entry = { marker: maplibregl.Marker; el: HTMLDivElement };
 
@@ -139,7 +144,7 @@ export function GroupMap({ members, selectedId, onSelect, bottomInset, topInset 
           ) : (
             <Pressable
               onPress={() => map.current?.easeTo({ center: [pin.lng, pin.lat], zoom: pin.expansionZoom, duration: 500 })}
-              accessibilityLabel={`${pin.count} personnes`}
+              accessibilityLabel={t('group.clusterA11y', { count: pin.count })}
             >
               <ClusterPin preview={pin.preview} count={pin.count} delay={i * 70} />
             </Pressable>

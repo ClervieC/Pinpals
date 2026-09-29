@@ -1,6 +1,8 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as Linking from 'expo-linking';
 
+import { t } from './i18n';
+
 const WEB_URL = process.env.EXPO_PUBLIC_WEB_URL?.replace(/\/$/, '');
 const PENDING_KEY = 'pinpals.pendingInvite';
 
@@ -13,7 +15,7 @@ export function inviteUrl(code: string): string {
 }
 
 export function inviteMessage(groupName: string, emoji: string, code: string): string {
-  return `${emoji} Rejoins « ${groupName} » sur Pinpals et pose ton pin sur la carte !\n${inviteUrl(code)}`;
+  return t('invite.message', { emoji, name: groupName, url: inviteUrl(code) });
 }
 
 // Un invité qui n'a pas encore de compte : on garde le code le temps de l'inscription.

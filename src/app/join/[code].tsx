@@ -4,6 +4,7 @@ import Animated, { ZoomIn } from 'react-native-reanimated';
 
 import { Button, ErrorText, Loading, Screen, T } from '@/components/ui';
 import { useAuth } from '@/lib/auth';
+import { t, tn } from '@/lib/i18n';
 import { pendingInvite } from '@/lib/invite';
 import { useGroupPreview, useJoinGroup, useMyGroups, useProfile } from '@/lib/queries';
 import { colors, shade, tint } from '@/lib/theme';
@@ -26,9 +27,9 @@ export default function Join() {
       <Screen>
         <View style={styles.center}>
           <T style={{ fontSize: 56 }}>🧐</T>
-          <T variant="heading">Ce code d&apos;invitation n&apos;existe pas</T>
+          <T variant="heading">{t('join.notFound')}</T>
           <ErrorText error={preview.error} />
-          <Button label="Retour" kind="ghost" onPress={() => router.replace('/')} />
+          <Button label={t('common.back')} kind="ghost" onPress={() => router.replace('/')} />
         </View>
       </Screen>
     );
@@ -54,12 +55,12 @@ export default function Join() {
   }
 
   const label = alreadyIn
-    ? 'Voir la carte'
+    ? t('join.open')
     : !session
-      ? 'Créer mon compte et rejoindre'
+      ? t('join.signUp')
       : !onboarded
-        ? 'Finir mon profil et rejoindre'
-        : 'Rejoindre le groupe';
+        ? t('join.finishProfile')
+        : t('join.join');
 
   return (
     <Screen background={tint(group.color, 0.55)}>
@@ -68,18 +69,16 @@ export default function Join() {
           <T style={{ fontSize: 64 }}>{group.emoji}</T>
         </Animated.View>
         <T variant="caption" style={{ color: shade(group.color, 0.55) }}>
-          Tu es invité·e à rejoindre
+          {t('join.invited')}
         </T>
         <T variant="title" style={{ textAlign: 'center' }}>
           {group.name}
         </T>
-        <T style={{ color: colors.inkSoft }}>
-          {group.member_count} {group.member_count > 1 ? 'personnes ont' : 'personne a'} déjà posé son pin
-        </T>
+        <T style={{ color: colors.inkSoft }}>{tn('join.count', group.member_count)}</T>
       </View>
       <ErrorText error={join.error} />
       <Button label={label} color={group.color} loading={join.isPending} onPress={onPress} />
-      {session ? <Button label="Plus tard" kind="ghost" onPress={() => router.replace('/')} /> : null}
+      {session ? <Button label={t('common.later')} kind="ghost" onPress={() => router.replace('/')} /> : null}
     </Screen>
   );
 }

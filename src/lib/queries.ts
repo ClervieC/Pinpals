@@ -3,7 +3,23 @@ import { decode } from 'base64-arraybuffer';
 
 import { useUserId } from './auth';
 import { supabase } from './supabase';
-import type { City, GroupMember, GroupPreview, MapMember, MyGroup, Profile, ProfileInput } from './types';
+import type {
+  Address,
+  AddressInput,
+  City,
+  Friend,
+  FriendNote,
+  GroupMember,
+  GroupPreview,
+  MapMember,
+  Memory,
+  MemoryInput,
+  MemoryPhoto,
+  MemorySummary,
+  MyGroup,
+  Profile,
+  ProfileInput,
+} from './types';
 
 export const keys = {
   profile: (uid: string) => ['profile', uid] as const,
@@ -11,7 +27,17 @@ export const keys = {
   groupMap: (gid: string) => ['group-map', gid] as const,
   groupMembers: (gid: string) => ['group-members', gid] as const,
   preview: (code: string) => ['group-preview', code] as const,
+  friends: ['friends'] as const,
+  myAddress: ['my-address'] as const,
+  addressShares: ['address-shares'] as const,
+  friendAddress: (fid: string) => ['friend-address', fid] as const,
+  friendNote: (fid: string) => ['friend-note', fid] as const,
+  memories: (filter: MemoryFilter) => ['memories', filter.groupId ?? null, filter.friendId ?? null] as const,
+  memory: (mid: string) => ['memory', mid] as const,
+  signedUrls: (paths: string[]) => ['signed-urls', ...paths] as const,
 };
+
+export type MemoryFilter = { groupId?: string; friendId?: string };
 
 function unwrap<T>({ data, error }: { data: T | null; error: { message: string } | null }): T {
   if (error) throw new Error(error.message);
@@ -101,6 +127,7 @@ export function useGroupMap(gid: string) {
 export function useGroupMembers(gid: string) {
   return useQuery({
     queryKey: keys.groupMembers(gid),
+    enabled: !!gid,
     queryFn: async () =>
       unwrap<GroupMember[]>(
         await supabase
@@ -178,6 +205,263 @@ export function useRemoveMember(gid: string) {
       qc.invalidateQueries({ queryKey: keys.groupMembers(gid) });
       qc.invalidateQueries({ queryKey: keys.groupMap(gid) });
       qc.invalidateQueries({ queryKey: keys.myGroups });
+    },
+  });
+}
+
+// --- Ami·es -----------------------------------------------------------------
+
+/** Les personnes avec qui je partage au moins un groupe (la RLS de profiles fait le filtre). */
+export function useFriends() {
+  const uid = useUserId();
+  return useQuery({
+    queryKey: keys.friends,
+    queryFn: async () =>
+      unwrap<Friend[]>(await supabase.from('profiles').select('*').neq('id', uid).order('display_name')),
+  });
+}
+
+// --- Adresse (privée) ---------------------------------------------------------
+
+export function useMyAddress() {
+  const uid = useUserId();
+  return useQuery({
+    queryKey: keys.myAddress,
+    queryFn: async () =>
+      unwrap<Address | null>(await supabase.from('addresses').select('*').eq('user_id', uid).maybeSingle()),
+  });
+}
+
+export function useSaveAddress() {
+  const uid = useUserId();
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (input: AddressInput) =>
+      unwrap<Address>(
+        await supabase
+          .from('addresses')
+          .upsert({ user_id: uid, ...input, updated_at: new Date().toISOString() })
+          .select()
+          .single(),
+      ),
+    onSuccess: (address) => qc.setQueryData(keys.myAddress, address),
+  });
+}
+
+export function useDeleteAddress() {
+  const uid = useUserId();
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async () => unwrap(await supabase.from('addresses').delete().eq('user_id', uid)),
+    onSuccess: () => qc.setQueryData(keys.myAddress, null),
+  });
+}
+
+/** Les ami·es à qui j'ai partagé mon adresse. */
+export function useAddressShares() {
+  const uid = useUserId();
+  return useQuery({
+    queryKey: keys.addressShares,
+    queryFn: async () => {
+      const rows = unwrap<{ viewer_id: string }[]>(
+        await supabase.from('address_shares').select('viewer_id').eq('owner_id', uid),
+      );
+      return rows.map((r) => r.viewer_id);
+    },
+  });
+}
+
+export function useToggleAddressShare() {
+  const uid = useUserId();
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ viewerId, shared }: { viewerId: string; shared: boolean }) =>
+      shared
+        ? unwrap(await supabase.from('address_shares').insert({ owner_id: uid, viewer_id: viewerId }))
+        : unwrap(await supabase.from('address_shares').delete().eq('owner_id', uid).eq('viewer_id', viewerId)),
+    onSuccess: () => qc.invalidateQueries({ queryKey: keys.addressShares }),
+  });
+}
+
+/** L'adresse d'un·e ami·e, si elle ou il me l'a partagée (sinon null). */
+export function useFriendAddress(fid: string) {
+  return useQuery({
+    queryKey: keys.friendAddress(fid),
+    queryFn: async () =>
+      unwrap<Address | null>(await supabase.from('addresses').select('*').eq('user_id', fid).maybeSingle()),
+  });
+}
+
+// --- Notes privées ------------------------------------------------------------
+
+export function useFriendNote(fid: string) {
+  const uid = useUserId();
+  return useQuery({
+    queryKey: keys.friendNote(fid),
+    queryFn: async () =>
+      unwrap<FriendNote | null>(
+        await supabase
+          .from('friend_notes')
+          .select('friend_id, gift_ideas, notes')
+          .eq('author_id', uid)
+          .eq('friend_id', fid)
+          .maybeSingle(),
+      ),
+  });
+}
+
+export function useSaveFriendNote(fid: string) {
+  const uid = useUserId();
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (input: Pick<FriendNote, 'gift_ideas' | 'notes'>) =>
+      unwrap<FriendNote>(
+        await supabase
+          .from('friend_notes')
+          .upsert({ author_id: uid, friend_id: fid, ...input, updated_at: new Date().toISOString() })
+          .select('friend_id, gift_ideas, notes')
+          .single(),
+      ),
+    onSuccess: (note) => qc.setQueryData(keys.friendNote(fid), note),
+  });
+}
+
+// --- Souvenirs ------------------------------------------------------------------
+
+const MEMORIES_BUCKET = 'memories';
+
+export function useMemories(filter: MemoryFilter = {}) {
+  return useQuery({
+    queryKey: keys.memories(filter),
+    queryFn: async () =>
+      unwrap<MemorySummary[]>(
+        await supabase.rpc('get_memories', {
+          p_group_id: filter.groupId ?? null,
+          p_friend_id: filter.friendId ?? null,
+        }),
+      ),
+  });
+}
+
+export type MemoryDetail = Memory & { photos: MemoryPhoto[]; people: string[] };
+
+export function useMemory(mid: string) {
+  return useQuery({
+    queryKey: keys.memory(mid),
+    queryFn: async () => {
+      const memory = unwrap<Memory | null>(await supabase.from('memories').select('*').eq('id', mid).maybeSingle());
+      if (!memory) return null;
+      const [photos, people] = await Promise.all([
+        supabase.from('memory_photos').select('*').eq('memory_id', mid).order('created_at'),
+        supabase.from('memory_people').select('user_id').eq('memory_id', mid),
+      ]);
+      return {
+        ...memory,
+        photos: unwrap<MemoryPhoto[]>(photos),
+        people: unwrap<{ user_id: string }[]>(people).map((p) => p.user_id),
+      } satisfies MemoryDetail;
+    },
+  });
+}
+
+export function useCreateMemory() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (input: MemoryInput & { groupId: string | null; people: string[] }) =>
+      unwrap<string>(
+        await supabase.rpc('create_memory', {
+          p_title: input.title,
+          p_kind: input.kind,
+          p_body: input.body,
+          p_place: input.place,
+          p_happened_on: input.happened_on,
+          p_ends_on: input.ends_on,
+          p_group_id: input.groupId,
+          p_people: input.people,
+        }),
+      ),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['memories'] }),
+  });
+}
+
+export function useUpdateMemory(mid: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ people, ...patch }: MemoryInput & { people: string[] }) => {
+      unwrap(await supabase.from('memories').update(patch).eq('id', mid));
+      unwrap(await supabase.rpc('set_memory_people', { mid, p_people: people }));
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: keys.memory(mid) });
+      qc.invalidateQueries({ queryKey: ['memories'] });
+    },
+  });
+}
+
+/** Supprime les fichiers du bucket avant la ligne (la cascade SQL ne touche pas au stockage). */
+export function useDeleteMemory(mid: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (paths: string[]) => {
+      if (paths.length) unwrap(await supabase.storage.from(MEMORIES_BUCKET).remove(paths));
+      unwrap(await supabase.from('memories').delete().eq('id', mid));
+    },
+    onSuccess: () => {
+      qc.removeQueries({ queryKey: keys.memory(mid) });
+      qc.invalidateQueries({ queryKey: ['memories'] });
+    },
+  });
+}
+
+/** Upload dans memories/<memory_id>/<uuid>.jpg puis enregistre la photo. */
+export function useAddMemoryPhotos(mid: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (images: { base64: string; mimeType: string }[]) => {
+      for (const image of images) {
+        const ext = image.mimeType.split('/')[1] ?? 'jpg';
+        const path = `${mid}/${Date.now()}-${Math.random().toString(36).slice(2, 8)}.${ext}`;
+        unwrap(
+          await supabase.storage
+            .from(MEMORIES_BUCKET)
+            .upload(path, decode(image.base64), { contentType: image.mimeType }),
+        );
+        unwrap(await supabase.from('memory_photos').insert({ memory_id: mid, path }));
+      }
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: keys.memory(mid) });
+      qc.invalidateQueries({ queryKey: ['memories'] });
+    },
+  });
+}
+
+export function useDeleteMemoryPhoto(mid: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (photo: MemoryPhoto) => {
+      unwrap(await supabase.storage.from(MEMORIES_BUCKET).remove([photo.path]));
+      unwrap(await supabase.from('memory_photos').delete().eq('id', photo.id));
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: keys.memory(mid) });
+      qc.invalidateQueries({ queryKey: ['memories'] });
+    },
+  });
+}
+
+/** Bucket privé : URLs signées valables 1 h, rafraîchies avant expiration. */
+export function useSignedUrls(paths: string[]) {
+  return useQuery({
+    queryKey: keys.signedUrls(paths),
+    enabled: paths.length > 0,
+    staleTime: 50 * 60_000,
+    queryFn: async () => {
+      const rows = unwrap(await supabase.storage.from(MEMORIES_BUCKET).createSignedUrls(paths, 3600));
+      return Object.fromEntries(rows.flatMap((r) => (r.path && r.signedUrl ? [[r.path, r.signedUrl]] : []))) as Record<
+        string,
+        string
+      >;
     },
   });
 }

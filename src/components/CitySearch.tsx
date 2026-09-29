@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { ActivityIndicator, Pressable, StyleSheet, View } from 'react-native';
 
 import { countryFlag, searchCities } from '@/lib/geo';
+import { t } from '@/lib/i18n';
 import { colors, radius, tint } from '@/lib/theme';
 import type { City } from '@/lib/types';
 
@@ -41,7 +42,7 @@ export function CitySearch({ onSelect, accent }: { onSelect: (city: City) => voi
       <Field
         value={query}
         onChangeText={setQuery}
-        placeholder="Bucarest, Lyon, Montréal…"
+        placeholder={t('city.placeholder')}
         autoCorrect={false}
         autoFocus
         returnKeyType="search"
@@ -65,7 +66,7 @@ export function CitySearch({ onSelect, accent }: { onSelect: (city: City) => voi
           </Pressable>
         ))}
         {!loading && active && results.length === 0 && !error ? (
-          <T variant="caption">Aucune ville trouvée 🤔</T>
+          <T variant="caption">{t('city.none')}</T>
         ) : null}
       </View>
     </View>

@@ -46,4 +46,4 @@ Docs: https://docs.expo.dev/eas/index.md
 - Toute écriture dans `group_members` / création de groupe passe par une RPC `security definer`. Chaque nouvelle fonction doit recevoir un `grant execute ... to authenticated` (self-hosted).
 - Après toute modification de `supabase/migrations`, lancer `npm run test:db` (RLS rejouées dans PGlite) et y ajouter les scénarios concernés.
 - La carte a deux implémentations : `GroupMap.native.tsx` (MapLibre RN v11) et `GroupMap.web.tsx` (maplibre-gl + portals). Toute évolution des pins doit rester dans `Pins.tsx`, partagé par les deux.
-- Textes UI en français.
+- Textes UI en français et en anglais : jamais de texte en dur, tout passe par `t()` / `tn()` de `src/lib/i18n.ts` (ajouter chaque clé dans `fr` et `en`). La langue suit celle de l'appareil (français si l'appareil est en français, anglais sinon).

@@ -67,7 +67,8 @@
           "photosPermission": "Pinpals utilise ta galerie pour choisir ton avatar."
         }
       ],
-      "@maplibre/maplibre-react-native"
+      "@maplibre/maplibre-react-native",
+      "expo-localization"
     ],
     "scheme": "pinpals",
     "experiments": {

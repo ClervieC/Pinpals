@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { View } from 'react-native';
 
+import { t } from '@/lib/i18n';
 import { groupEmojis, pastels } from '@/lib/theme';
 
 import { Button, ColorPicker, EmojiPicker, ErrorText, Field, T } from './ui';
@@ -22,13 +23,13 @@ export function GroupForm({ initial, submitLabel, loading, error, onSubmit }: Pr
 
   return (
     <View style={{ gap: 20 }}>
-      <Field label="Nom du groupe" value={name} onChangeText={setName} placeholder="Promo ENSAD 2020" maxLength={60} />
+      <Field label={t('group.name')} value={name} onChangeText={setName} placeholder={t('group.namePlaceholder')} maxLength={60} />
       <View style={{ gap: 8 }}>
-        <T variant="label">Emoji</T>
+        <T variant="label">{t('group.emoji')}</T>
         <EmojiPicker options={groupEmojis} value={emoji} onChange={setEmoji} />
       </View>
       <View style={{ gap: 8 }}>
-        <T variant="label">Couleur</T>
+        <T variant="label">{t('group.color')}</T>
         <ColorPicker options={pastels} value={color} onChange={setColor} />
       </View>
       <ErrorText error={error} />
