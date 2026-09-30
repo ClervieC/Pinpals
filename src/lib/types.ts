@@ -137,8 +137,18 @@ export type Memory = {
   created_at: string;
 };
 
+/** Une ville où s'est passé un souvenir (centre-ville, jamais une adresse). */
+export type MemoryStop = { name: string; country_code: string | null; lat: number; lng: number };
+
 /** Une ligne renvoyée par la RPC get_memories. */
-export type MemorySummary = Memory & { cover_path: string | null; photo_count: number; people: string[] };
+export type MemorySummary = Memory & {
+  cover_path: string | null;
+  photo_count: number;
+  people: string[];
+  /** Les 3 premières photos, pour les aperçus. */
+  photo_paths: string[];
+  stops: MemoryStop[];
+};
 
 export type MemoryPhoto = { id: string; memory_id: string; path: string; uploaded_by: string; created_at: string };
 

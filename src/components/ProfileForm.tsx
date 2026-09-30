@@ -10,7 +10,7 @@ import { AvatarPicker } from './AvatarPicker';
 import { DateField, type DateParts, parseDate } from './DateField';
 import { FavoritesFields } from './FriendCard';
 import { SOCIALS } from './MemberSheet';
-import { Button, ColorPicker, ErrorText, Field, T } from './ui';
+import { Button, ColorPicker, ErrorText, Field, SectionCard, T } from './ui';
 
 type Props = {
   profile: Profile | null | undefined;
@@ -65,40 +65,40 @@ export function ProfileForm({ profile, submitLabel, full = false, onSaved }: Pro
   }
 
   return (
-    <View style={{ gap: 20 }}>
-      <AvatarPicker name={name} url={avatar} color={color} onChange={setAvatar} />
+    <View style={{ gap: 16 }}>
+      <SectionCard icon="map-pin" title={t('profile.section.pin')}>
+        <AvatarPicker name={name} url={avatar} color={color} onChange={setAvatar} />
+        <Field label={t('profile.name')} value={name} onChangeText={setName} placeholder={t('profile.namePlaceholder')} maxLength={50} />
+        <View style={{ gap: 8 }}>
+          <T variant="label">{t('profile.pinColor')}</T>
+          <ColorPicker options={pastels} value={color} onChange={setColor} />
+        </View>
+        <Field
+          label={t('profile.emoji')}
+          value={emoji}
+          onChangeText={(v) => setEmoji([...v].slice(-2).join(''))}
+          placeholder="🌸"
+          style={{ width: 90, textAlign: 'center', fontSize: 22 }}
+        />
+      </SectionCard>
 
-      <Field label={t('profile.name')} value={name} onChangeText={setName} placeholder={t('profile.namePlaceholder')} maxLength={50} />
-
-      <View style={{ gap: 8 }}>
-        <T variant="label">{t('profile.pinColor')}</T>
-        <ColorPicker options={pastels} value={color} onChange={setColor} />
-      </View>
-
-      <Field
-        label={t('profile.emoji')}
-        value={emoji}
-        onChangeText={(v) => setEmoji([...v].slice(-2).join(''))}
-        placeholder="🌸"
-        style={{ width: 90, textAlign: 'center', fontSize: 22 }}
-      />
-
-      <DateField label={t('profile.birthday')} value={birthday} onChange={setBirthday} yearOptional />
-
-      <FavoritesFields value={favorites} onChange={setFavorites} />
-
-      <Field
-        label={t('profile.wishlist')}
-        value={wishlist}
-        onChangeText={setWishlist}
-        placeholder={t('profile.wishlistPlaceholder')}
-        multiline
-        maxLength={500}
-        style={{ minHeight: 70, paddingTop: 12, textAlignVertical: 'top' }}
-      />
+      <SectionCard icon="heart" title={t('profile.section.card')}>
+        <T variant="caption">{t('profile.section.cardHint')}</T>
+        <DateField label={t('profile.birthday')} value={birthday} onChange={setBirthday} yearOptional />
+        <FavoritesFields value={favorites} onChange={setFavorites} />
+        <Field
+          label={t('profile.wishlist')}
+          value={wishlist}
+          onChangeText={setWishlist}
+          placeholder={t('profile.wishlistPlaceholder')}
+          multiline
+          maxLength={500}
+          style={{ minHeight: 70, paddingTop: 12, textAlignVertical: 'top' }}
+        />
+      </SectionCard>
 
       {full ? (
-        <>
+        <SectionCard icon="briefcase" title={t('profile.section.more')}>
           <Field label={t('profile.job')} value={jobTitle} onChangeText={setJobTitle} placeholder={t('profile.jobPlaceholder')} />
           <Field label={t('profile.company')} value={company} onChangeText={setCompany} placeholder={t('profile.companyPlaceholder')} />
           <Field
@@ -117,17 +117,17 @@ export function ProfileForm({ profile, submitLabel, full = false, onSaved }: Pro
                 key={key}
                 value={socials[key] ?? ''}
                 onChangeText={(v) => setSocials((s) => ({ ...s, [key]: v }))}
-                placeholder={`${SOCIALS[key].icon} ${SOCIALS[key].label} : ${SOCIALS[key].placeholder}`}
+                placeholder={`${SOCIALS[key].label} : ${SOCIALS[key].placeholder}`}
                 autoCapitalize="none"
                 autoCorrect={false}
               />
             ))}
           </View>
-        </>
+        </SectionCard>
       ) : null}
 
       <ErrorText error={save.error} />
-      <Button label={submitLabel} color={color} onPress={submit} loading={save.isPending} disabled={!name.trim() || parsedBirthday === 'invalid'} />
+      <Button label={submitLabel} onPress={submit} loading={save.isPending} disabled={!name.trim() || parsedBirthday === 'invalid'} />
     </View>
   );
 }

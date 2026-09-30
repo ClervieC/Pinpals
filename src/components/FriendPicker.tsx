@@ -4,7 +4,7 @@ import { colors, fonts, radius, tint } from '@/lib/theme';
 import type { Friend } from '@/lib/types';
 
 import { Avatar } from './Avatar';
-import { T } from './ui';
+import { Icon, T } from './ui';
 
 type Props = {
   friends: Pick<Friend, 'id' | 'display_name' | 'avatar_url' | 'pin_color'>[];
@@ -28,13 +28,11 @@ export function FriendPicker({ friends, selected, onChange }: Props) {
             onPress={() => toggle(f.id)}
             accessibilityRole="checkbox"
             accessibilityState={{ checked: on }}
-            style={[styles.chip, on && { backgroundColor: tint(f.pin_color, 0.35), borderColor: f.pin_color }]}
+            style={[styles.chip, on && styles.chipOn]}
           >
-            <Avatar name={f.display_name} url={f.avatar_url} color={f.pin_color} size={28} ring={2} />
-            <T style={{ fontFamily: on ? fonts.bold : fonts.semibold, fontSize: 15 }}>
-              {f.display_name}
-              {on ? ' ✓' : ''}
-            </T>
+            <Avatar name={f.display_name} url={f.avatar_url} color={f.pin_color} size={26} ring={2} />
+            <T style={{ fontFamily: fonts.medium, fontSize: 14 }}>{f.display_name}</T>
+            {on ? <Icon name="check" size={14} color={colors.accent} /> : null}
           </Pressable>
         );
       })}
@@ -49,11 +47,12 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 8,
     paddingLeft: 4,
-    paddingRight: 14,
+    paddingRight: 12,
     paddingVertical: 4,
     borderRadius: radius.pill,
-    borderWidth: 2,
+    borderWidth: 1,
     borderColor: colors.line,
     backgroundColor: colors.paper,
   },
+  chipOn: { borderColor: colors.accent, backgroundColor: tint(colors.accent, 0.9) },
 });

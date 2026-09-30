@@ -4,6 +4,7 @@ import { View } from 'react-native';
 import { t } from '@/lib/i18n';
 import { groupEmojis, pastels } from '@/lib/theme';
 
+import { ColorCard } from './Tiles';
 import { Button, ColorPicker, EmojiPicker, ErrorText, Field, T } from './ui';
 
 export type GroupFormValues = { name: string; emoji: string; color: string };
@@ -23,6 +24,13 @@ export function GroupForm({ initial, submitLabel, loading, error, onSubmit }: Pr
 
   return (
     <View style={{ gap: 20 }}>
+      {/* Aperçu en direct de la carte du groupe, telle qu'elle apparaîtra dans « Mes groupes ». */}
+      <ColorCard
+        color={color}
+        badge={<T style={{ fontSize: 30 }}>{emoji}</T>}
+        title={name.trim() || t('group.namePlaceholder')}
+        subtitle={t('group.preview')}
+      />
       <Field label={t('group.name')} value={name} onChangeText={setName} placeholder={t('group.namePlaceholder')} maxLength={60} />
       <View style={{ gap: 8 }}>
         <T variant="label">{t('group.emoji')}</T>
@@ -35,7 +43,6 @@ export function GroupForm({ initial, submitLabel, loading, error, onSubmit }: Pr
       <ErrorText error={error} />
       <Button
         label={submitLabel}
-        color={color}
         loading={loading}
         disabled={!name.trim()}
         onPress={() => onSubmit({ name: name.trim(), emoji, color })}

@@ -1,5 +1,5 @@
-import { useEffect, useState } from 'react';
-import { StyleSheet, View } from 'react-native';
+import { useState } from 'react';
+import { View } from 'react-native';
 
 import { t } from '@/lib/i18n';
 import {
@@ -10,10 +10,11 @@ import {
   useSaveAddress,
   useToggleAddressShare,
 } from '@/lib/queries';
-import { colors, radius } from '@/lib/theme';
+import type { Address, AddressInput } from '@/lib/types';
 
 import { FriendPicker } from './FriendPicker';
-import { Button, ErrorText, Field, T } from './ui';
+import { Chip } from './Tiles';
+import { Button, ErrorText, Field, SectionCard, T } from './ui';
 
 /** Mon adresse postale : jamais sur la carte, visible seulement par les ami·es que je coche. */
 export function AddressSection() {
@@ -24,28 +25,6 @@ export function AddressSection() {
   const toggle = useToggleAddressShare();
   const friends = useFriends();
 
-  const [line1, setLine1] = useState('');
-  const [line2, setLine2] = useState('');
-  const [postalCode, setPostalCode] = useState('');
-  const [city, setCity] = useState('');
-  const [country, setCountry] = useState('');
-
-  useEffect(() => {
-    setLine1(address.data?.line1 ?? '');
-    setLine2(address.data?.line2 ?? '');
-    setPostalCode(address.data?.postal_code ?? '');
-    setCity(address.data?.city ?? '');
-    setCountry(address.data?.country ?? '');
-  }, [address.data]);
-
-  const saved = address.data;
-  const dirty =
-    line1 !== (saved?.line1 ?? '') ||
-    line2 !== (saved?.line2 ?? '') ||
-    postalCode !== (saved?.postal_code ?? '') ||
-    city !== (saved?.city ?? '') ||
-    country !== (saved?.country ?? '');
-
   // Diff entre la sélection voulue et les partages existants : un appel par ami·e ajouté·e ou retiré·e.
   function setShared(next: string[]) {
     const current = shares.data ?? [];
@@ -54,9 +33,59 @@ export function AddressSection() {
   }
 
   return (
-    <View style={styles.box}>
-      <T variant="heading">{t('address.title')} 🔒</T>
+    <SectionCard icon="mail" title={t('address.title')} right={<Chip icon="lock" label={t('address.private')} />}>
       <T variant="caption">{t('address.hint')}</T>
+      {address.isPending ? null : (
+        // Remonté après chaque enregistrement : les champs repartent de la version sauvegardée.
+        <AddressForm
+          key={address.data?.updated_at ?? 'new'}
+          address={address.data ?? null}
+          saving={save.isPending}
+          onSave={(input) => save.mutate(input)}
+        />
+      )}
+      <ErrorText error={address.error ?? save.error ?? remove.error} />
+
+      {address.data ? (
+        <View style={{ gap: 10, marginTop: 4 }}>
+          <T variant="label">{t('address.sharedWith')}</T>
+          {friends.data?.length ? (
+            <FriendPicker friends={friends.data} selected={shares.data ?? []} onChange={setShared} />
+          ) : (
+            <T variant="caption">{t('memory.noFriends')}</T>
+          )}
+          <ErrorText error={shares.error ?? toggle.error} />
+          <Button label={t('address.delete')} kind="ghost" loading={remove.isPending} onPress={() => remove.mutate()} />
+        </View>
+      ) : null}
+    </SectionCard>
+  );
+}
+
+function AddressForm({
+  address,
+  saving,
+  onSave,
+}: {
+  address: Address | null;
+  saving: boolean;
+  onSave: (input: AddressInput) => void;
+}) {
+  const [line1, setLine1] = useState(address?.line1 ?? '');
+  const [line2, setLine2] = useState(address?.line2 ?? '');
+  const [postalCode, setPostalCode] = useState(address?.postal_code ?? '');
+  const [city, setCity] = useState(address?.city ?? '');
+  const [country, setCountry] = useState(address?.country ?? '');
+
+  const dirty =
+    line1 !== (address?.line1 ?? '') ||
+    line2 !== (address?.line2 ?? '') ||
+    postalCode !== (address?.postal_code ?? '') ||
+    city !== (address?.city ?? '') ||
+    country !== (address?.country ?? '');
+
+  return (
+    <View style={{ gap: 12 }}>
       <Field label={t('address.line1')} value={line1} onChangeText={setLine1} maxLength={200} autoComplete="address-line1" />
       <Field label={t('address.line2')} value={line2} onChangeText={setLine2} maxLength={200} autoComplete="address-line2" />
       <View style={{ flexDirection: 'row', gap: 10 }}>
@@ -74,14 +103,13 @@ export function AddressSection() {
         </View>
       </View>
       <Field label={t('address.country')} value={country} onChangeText={setCountry} maxLength={100} autoComplete="country" />
-      <ErrorText error={address.error ?? save.error ?? remove.error} />
       <Button
         label={t('common.save')}
-        kind="ghost"
-        loading={save.isPending}
+        kind="secondary"
+        loading={saving}
         disabled={!dirty || !line1.trim() || !city.trim()}
         onPress={() =>
-          save.mutate({
+          onSave({
             line1: line1.trim(),
             line2: line2.trim() || null,
             postal_code: postalCode.trim() || null,
@@ -90,23 +118,6 @@ export function AddressSection() {
           })
         }
       />
-
-      {saved ? (
-        <>
-          <T variant="label">{t('address.sharedWith')}</T>
-          {friends.data?.length ? (
-            <FriendPicker friends={friends.data} selected={shares.data ?? []} onChange={setShared} />
-          ) : (
-            <T variant="caption">{t('memory.noFriends')}</T>
-          )}
-          <ErrorText error={shares.error ?? toggle.error} />
-          <Button label={t('address.delete')} kind="danger" loading={remove.isPending} onPress={() => remove.mutate()} />
-        </>
-      ) : null}
     </View>
   );
 }
-
-const styles = StyleSheet.create({
-  box: { padding: 16, gap: 10, borderRadius: radius.lg, backgroundColor: colors.paper },
-});

@@ -10,7 +10,7 @@ export default function AppLayout() {
         headerShown: false,
         headerShadowVisible: false,
         headerStyle: { backgroundColor: colors.cream },
-        headerTitleStyle: { fontFamily: fonts.black, color: colors.ink },
+        headerTitleStyle: { fontFamily: fonts.display, fontSize: 18, color: colors.ink },
         headerTintColor: colors.ink,
         headerBackButtonDisplayMode: 'minimal',
         contentStyle: { backgroundColor: colors.cream },
@@ -18,14 +18,14 @@ export default function AppLayout() {
     >
       <Stack.Screen name="(tabs)" />
       <Stack.Screen name="group/[id]/index" />
-      <Stack.Screen name="group/[id]/memories" options={{ headerShown: true, title: t('memories.groupTitle') }} />
+      <Stack.Screen name="group/[id]/memories" options={{ headerShown: true, title: '' }} />
       <Stack.Screen name="friend/[id]" options={{ headerShown: true, title: '' }} />
       <Stack.Screen name="memory/[id]" options={{ headerShown: true, title: '' }} />
       <Stack.Screen name="memory/new" options={{ headerShown: true, title: t('memory.new.title'), presentation: 'modal' }} />
       <Stack.Screen name="memory/edit/[id]" options={{ headerShown: true, title: t('memory.edit.title'), presentation: 'modal' }} />
-      <Stack.Screen name="group/[id]/settings" options={{ headerShown: true, title: t('settings.title') }} />
+      <Stack.Screen name="group/[id]/settings" options={{ headerShown: true, title: '' }} />
       <Stack.Screen name="group/new" options={{ headerShown: true, title: t('group.new.title'), presentation: 'modal' }} />
-      <Stack.Screen name="me" options={{ headerShown: true, title: t('me.title') }} />
+      <Stack.Screen name="me" options={{ headerShown: true, title: '' }} />
     </Stack>
   );
 }

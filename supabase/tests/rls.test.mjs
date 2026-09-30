@@ -134,6 +134,17 @@ await expectOk('get_memories for A: 2', A, `select * from get_memories()`, r=>r.
 await expectOk('get_memories filtered by friend B', A, `select title, photo_count, cover_path, people from get_memories(null,'${B}')`, r=>r.length===2 && r.some(m=>Number(m.photo_count)===1 && m.cover_path===`${m1}/b1.jpg`));
 await expectOk('get_memories filtered by group', A, `select * from get_memories('${g2}')`, r=>r.length===1);
 await expectOk('C get_memories empty', C, `select * from get_memories()`, r=>r.length===0);
+// Étapes (carte des souvenirs)
+const stops = `'[{"name":"Lisbonne","country_code":"pt","lat":38.72,"lng":-9.14},{"name":"Porto","country_code":"PT","lat":41.15,"lng":-8.61}]'::jsonb`;
+await expectOk('A sets trip stops', A, `select set_memory_stops('${m1}', ${stops})`);
+await expectOk('B sees stops in order', B, `select name, country_code from memory_stops where memory_id='${m1}' order by position`, r=>r.length===2 && r[0].name==='Lisbonne' && r[0].country_code==='PT');
+await expectOk('C cannot see stops', C, `select * from memory_stops`, r=>r.length===0);
+await expectErr('B (not author) cannot set stops', B, `select set_memory_stops('${m1}', '[]'::jsonb)`);
+await expectErr('A cannot insert stop directly', A, `insert into memory_stops(memory_id,position,name,lat,lng) values ('${m1}',5,'x',0,0)`);
+await expectErr('bad latitude rejected', A, `select set_memory_stops('${m1}', '[{"name":"x","lat":120,"lng":0}]'::jsonb)`);
+await expectOk('get_memories returns stops + photo paths', A, `select stops, photo_paths from get_memories() where id='${m1}'`, r=>r.length===1 && r[0].stops.length===2 && r[0].stops[1].name==='Porto' && r[0].photo_paths.length===1);
+await expectOk('A replaces stops', A, `select set_memory_stops('${m1}', '[{"name":"Madrid","country_code":"ES","lat":40.4,"lng":-3.7}]'::jsonb)`);
+await expectOk('only the new stop remains', B, `select name from memory_stops where memory_id='${m1}'`, r=>r.length===1 && r[0].name==='Madrid');
 await expectOk('A (author) deletes B photo', A, `delete from storage.objects where bucket_id='memories' and name='${m1}/b1.jpg' returning *`, r=>r.length===1);
 
 // Quand B quitte le groupe, l'adresse partagée et les souvenirs de groupe disparaissent pour lui.

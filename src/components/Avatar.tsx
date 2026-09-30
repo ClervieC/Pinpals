@@ -13,7 +13,7 @@ type Props = {
 };
 
 /** Avatar rond avec l'anneau de la couleur du pin. Initiale en fallback. */
-export function Avatar({ name, url, color, size = 48, ring = 3 }: Props) {
+export function Avatar({ name, url, color, size = 48, ring = 2 }: Props) {
   const inner = size - ring * 2;
   return (
     <View style={[styles.ring, { width: size, height: size, borderRadius: size / 2, backgroundColor: color, padding: ring }]}>

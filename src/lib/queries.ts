@@ -15,6 +15,7 @@ import type {
   Memory,
   MemoryInput,
   MemoryPhoto,
+  MemoryStop,
   MemorySummary,
   MyGroup,
   Profile,
@@ -343,7 +344,7 @@ export function useMemories(filter: MemoryFilter = {}) {
   });
 }
 
-export type MemoryDetail = Memory & { photos: MemoryPhoto[]; people: string[] };
+export type MemoryDetail = Memory & { photos: MemoryPhoto[]; people: string[]; stops: MemoryStop[] };
 
 export function useMemory(mid: string) {
   return useQuery({
@@ -351,14 +352,16 @@ export function useMemory(mid: string) {
     queryFn: async () => {
       const memory = unwrap<Memory | null>(await supabase.from('memories').select('*').eq('id', mid).maybeSingle());
       if (!memory) return null;
-      const [photos, people] = await Promise.all([
+      const [photos, people, stops] = await Promise.all([
         supabase.from('memory_photos').select('*').eq('memory_id', mid).order('created_at'),
         supabase.from('memory_people').select('user_id').eq('memory_id', mid),
+        supabase.from('memory_stops').select('name, country_code, lat, lng').eq('memory_id', mid).order('position'),
       ]);
       return {
         ...memory,
         photos: unwrap<MemoryPhoto[]>(photos),
         people: unwrap<{ user_id: string }[]>(people).map((p) => p.user_id),
+        stops: unwrap<MemoryStop[]>(stops),
       } satisfies MemoryDetail;
     },
   });
@@ -367,8 +370,13 @@ export function useMemory(mid: string) {
 export function useCreateMemory() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: async (input: MemoryInput & { groupId: string | null; people: string[] }) =>
-      unwrap<string>(
+    // Les photos partent juste après la création : le chemin du bucket contient l'id du souvenir.
+    mutationFn: async ({
+      photos = [],
+      stops = [],
+      ...input
+    }: MemoryInput & { groupId: string | null; people: string[]; photos?: PhotoUpload[]; stops?: MemoryStop[] }) => {
+      const mid = unwrap<string>(
         await supabase.rpc('create_memory', {
           p_title: input.title,
           p_kind: input.kind,
@@ -379,17 +387,28 @@ export function useCreateMemory() {
           p_group_id: input.groupId,
           p_people: input.people,
         }),
-      ),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['memories'] }),
+      );
+      if (stops.length) unwrap(await supabase.rpc('set_memory_stops', { mid, p_stops: stops }));
+      // Souvenir créé même si une photo échoue : on renvoie l'erreur au lieu de lever,
+      // pour ne pas rester sur le formulaire (un second envoi créerait un doublon).
+      try {
+        await uploadMemoryPhotos(mid, photos);
+        return { id: mid, photoError: null as unknown };
+      } catch (photoError) {
+        return { id: mid, photoError };
+      }
+    },
+    onSettled: () => qc.invalidateQueries({ queryKey: ['memories'] }),
   });
 }
 
 export function useUpdateMemory(mid: string) {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: async ({ people, ...patch }: MemoryInput & { people: string[] }) => {
+    mutationFn: async ({ people, stops, ...patch }: MemoryInput & { people: string[]; stops: MemoryStop[] }) => {
       unwrap(await supabase.from('memories').update(patch).eq('id', mid));
       unwrap(await supabase.rpc('set_memory_people', { mid, p_people: people }));
+      unwrap(await supabase.rpc('set_memory_stops', { mid, p_stops: stops }));
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: keys.memory(mid) });
@@ -413,22 +432,22 @@ export function useDeleteMemory(mid: string) {
   });
 }
 
-/** Upload dans memories/<memory_id>/<uuid>.jpg puis enregistre la photo. */
+export type PhotoUpload = { base64: string; mimeType: string };
+
+/** Upload dans memories/<memory_id>/<horodatage>.<ext> puis enregistre la photo. */
+async function uploadMemoryPhotos(mid: string, images: PhotoUpload[]) {
+  for (const image of images) {
+    const ext = image.mimeType.split('/')[1] ?? 'jpg';
+    const path = `${mid}/${Date.now()}-${Math.random().toString(36).slice(2, 8)}.${ext}`;
+    unwrap(await supabase.storage.from(MEMORIES_BUCKET).upload(path, decode(image.base64), { contentType: image.mimeType }));
+    unwrap(await supabase.from('memory_photos').insert({ memory_id: mid, path }));
+  }
+}
+
 export function useAddMemoryPhotos(mid: string) {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: async (images: { base64: string; mimeType: string }[]) => {
-      for (const image of images) {
-        const ext = image.mimeType.split('/')[1] ?? 'jpg';
-        const path = `${mid}/${Date.now()}-${Math.random().toString(36).slice(2, 8)}.${ext}`;
-        unwrap(
-          await supabase.storage
-            .from(MEMORIES_BUCKET)
-            .upload(path, decode(image.base64), { contentType: image.mimeType }),
-        );
-        unwrap(await supabase.from('memory_photos').insert({ memory_id: mid, path }));
-      }
-    },
+    mutationFn: (images: PhotoUpload[]) => uploadMemoryPhotos(mid, images),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: keys.memory(mid) });
       qc.invalidateQueries({ queryKey: ['memories'] });

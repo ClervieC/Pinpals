@@ -13,6 +13,8 @@ export type PinItem =
       count: number;
       /** Les premiers membres du cluster, pour la pile d'avatars. */
       preview: MapMember[];
+      /** Tous les membres du cluster, pour la fiche de la ville. */
+      members: MapMember[];
       expansionZoom: number;
     };
 
@@ -52,6 +54,7 @@ export function useClusters(members: MapMember[], zoom: number): PinItem[] {
             lat,
             count: props.point_count,
             preview: index.getLeaves(clusterId, 3).map((leaf) => leaf.properties.member),
+            members: index.getLeaves(clusterId, Infinity).map((leaf) => leaf.properties.member),
             expansionZoom: Math.min(index.getClusterExpansionZoom(clusterId), 16),
           };
         }

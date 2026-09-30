@@ -38,7 +38,22 @@
       "Bash(grep -o \"import[^;]*from\\\\s*\\\\\"[^\\\\\"]*\\\\\"\\\\|from\\\\`[^\\\\`]*\\\\`\\\\|from'[^']*'\\\\|from\\\\\"[^\\\\\"]*\\\\\"\" maplibre-gl-worker.mjs)",
       "Bash(node scripts/copy-maplibre-worker.mjs)",
       "Bash(curl -s -o /dev/null -w \"%{http_code} %{content_type}\\\\n\" http://localhost:8083/maplibre/maplibre-gl-worker.mjs)",
-      "Bash(python3 -c \"import json;print\\(json.load\\(open\\('app.json'\\)\\)['expo'].get\\('web'\\)\\)\")"
+      "Bash(python3 -c \"import json;print\\(json.load\\(open\\('app.json'\\)\\)['expo'].get\\('web'\\)\\)\")",
+      "Bash(npm uninstall *)",
+      "Bash(sed -i '' 's|          <T style={{ fontSize: 56 }}>🧐</T>|          <Icon name=\"help-circle\" size={36} color={colors.inkSoft} />|; s|^import { Button, ErrorText, Loading, Screen, T } from .@/components/ui.;|import { Button, ErrorText, Icon, Loading, Screen, T } from '\"'\"'@/components/ui'\"'\"';|' \"src/app/join/[code].tsx\" && grep -n \"Icon\" \"src/app/join/[code].tsx\"; cat \"src/app/\\(onboarding\\)/location.tsx\" | sed -n 10,20p; grep -n \"tint\\\\|shade\\\\|fontSize\\\\|fonts\\\\.\" src/components/CitySearch.tsx src/components/AvatarPicker.tsx)",
+      "Bash(sed -i '' '/  const current = index >= 0 ? members\\\\[index\\\\] : null;/d' src/components/MemberSheet.tsx)",
+      "Bash(sed -i '' 's|headerTitleStyle: { fontFamily: fonts.black, color: colors.ink },|headerTitleStyle: { fontFamily: fonts.semibold, fontSize: 17, color: colors.ink },|' \"src/app/\\(app\\)/_layout.tsx\")",
+      "Bash(pkill -f \"prof-cdp\")",
+      "Bash(node /private/tmp/claude-501/-Users-clervie-Desktop-Projects-Pinpals/10b1a94c-a3c1-4a26-8259-09da233db925/scratchpad/cdp.mjs http://localhost:8083/maplibre/_raw.html /private/tmp/claude-501/-Users-clervie-Desktop-Projects-Pinpals/10b1a94c-a3c1-4a26-8259-09da233db925/scratchpad/raw.png)",
+      "Bash(npm view *)",
+      "Bash(python3 - *)",
+      "Bash(curl -s -o /dev/null -w \"%{http_code}\\\\n\" --max-time 5 http://localhost:8083/)",
+      "Bash(curl -s -o /dev/null -w \"page:%{http_code}\\\\n\" http://localhost:8083/)",
+      "Bash(curl -s -o /dev/null -w \"bundle:%{http_code}\\\\n\" --max-time 200 \"http://localhost:8083/node_modules/expo-router/entry.bundle?platform=web&dev=true\")"
+    ],
+    "additionalDirectories": [
+      "/Users/clervie/Desktop/Projects/Pinpals/src/app/join",
+      "/Users/clervie/Desktop/Projects/Pinpals/src/app/(app)/memory"
     ]
   },
   "enabledPlugins": {

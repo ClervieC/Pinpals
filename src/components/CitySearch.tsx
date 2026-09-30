@@ -3,13 +3,13 @@ import { ActivityIndicator, Pressable, StyleSheet, View } from 'react-native';
 
 import { countryFlag, searchCities } from '@/lib/geo';
 import { t } from '@/lib/i18n';
-import { colors, radius, tint } from '@/lib/theme';
+import { colors, radius } from '@/lib/theme';
 import type { City } from '@/lib/types';
 
 import { ErrorText, Field, T } from './ui';
 
 /** Champ de recherche de ville avec autocomplétion (Photon, debounce 250 ms). */
-export function CitySearch({ onSelect, accent }: { onSelect: (city: City) => void; accent: string }) {
+export function CitySearch({ onSelect }: { onSelect: (city: City) => void }) {
   const [query, setQuery] = useState('');
   const [results, setResults] = useState<City[]>([]);
   const [loading, setLoading] = useState(false);
@@ -54,11 +54,11 @@ export function CitySearch({ onSelect, accent }: { onSelect: (city: City) => voi
           <Pressable
             key={city.id}
             onPress={() => onSelect(city)}
-            style={({ pressed }) => [styles.result, pressed && { backgroundColor: tint(accent, 0.6) }]}
+            style={({ pressed }) => [styles.result, pressed && { backgroundColor: colors.muted }]}
           >
-            <T style={{ fontSize: 26 }}>{countryFlag(city.countryCode)}</T>
+            <T style={{ fontSize: 22 }}>{countryFlag(city.countryCode)}</T>
             <View style={{ flex: 1 }}>
-              <T variant="heading" style={{ fontSize: 17 }}>
+              <T variant="heading" style={{ fontSize: 16 }}>
                 {city.name}
               </T>
               <T variant="caption">{[city.region, city.country].filter(Boolean).join(', ')}</T>
@@ -81,5 +81,7 @@ const styles = StyleSheet.create({
     padding: 14,
     borderRadius: radius.md,
     backgroundColor: colors.paper,
+    borderWidth: 1,
+    borderColor: colors.line,
   },
 });

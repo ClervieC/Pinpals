@@ -8,7 +8,7 @@ import { uploadAvatar } from '@/lib/queries';
 import { colors } from '@/lib/theme';
 
 import { Avatar } from './Avatar';
-import { ErrorText, T } from './ui';
+import { ErrorText, Icon } from './ui';
 
 type Props = {
   name: string;
@@ -51,7 +51,7 @@ export function AvatarPicker({ name, url, color, onChange }: Props) {
       <Pressable onPress={pick} disabled={uploading} accessibilityLabel={t('profile.changeAvatar')}>
         <Avatar name={name || '?'} url={url} color={color} size={120} ring={6} />
         <View style={styles.badge}>
-          {uploading ? <ActivityIndicator size="small" color={colors.ink} /> : <T style={{ fontSize: 16 }}>📷</T>}
+          {uploading ? <ActivityIndicator size="small" color={colors.ink} /> : <Icon name="camera" size={16} />}
         </View>
       </Pressable>
       <ErrorText error={error} />
@@ -65,13 +65,13 @@ const styles = StyleSheet.create({
     position: 'absolute',
     right: 0,
     bottom: 0,
-    width: 38,
-    height: 38,
-    borderRadius: 19,
+    width: 34,
+    height: 34,
+    borderRadius: 17,
     backgroundColor: colors.paper,
     alignItems: 'center',
     justifyContent: 'center',
-    borderWidth: 2,
+    borderWidth: 1,
     borderColor: colors.line,
   },
 });

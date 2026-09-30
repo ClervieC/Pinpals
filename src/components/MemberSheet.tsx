@@ -5,13 +5,14 @@ import { useEffect, useRef } from 'react';
 import { type NativeScrollEvent, type NativeSyntheticEvent, Pressable, StyleSheet, useWindowDimensions, View } from 'react-native';
 import { FlatList } from 'react-native-gesture-handler';
 
+import { useUserId } from '@/lib/auth';
 import { countryFlag, monthYear } from '@/lib/geo';
 import { t } from '@/lib/i18n';
-import { colors, fonts, radius, shade, tint } from '@/lib/theme';
+import { colors, fonts, radius } from '@/lib/theme';
 import type { MapMember, SocialKey } from '@/lib/types';
 
 import { Avatar } from './Avatar';
-import { Button, T } from './ui';
+import { Button, Icon, T } from './ui';
 
 export const SHEET_HEIGHT = 330;
 
@@ -30,7 +31,6 @@ export function MemberSheet({ members, selectedId, onSelect }: Props) {
   const list = useRef<FlatList<MapMember>>(null);
   const { width } = useWindowDimensions();
   const index = members.findIndex((m) => m.id === selectedId);
-  const current = index >= 0 ? members[index] : null;
 
   useEffect(() => {
     if (index < 0) {
@@ -55,8 +55,8 @@ export function MemberSheet({ members, selectedId, onSelect }: Props) {
       enableDynamicSizing={false}
       enablePanDownToClose
       onClose={() => onSelect(null)}
-      backgroundStyle={{ backgroundColor: tint(current?.pin_color ?? colors.pink, 0.78), borderRadius: radius.lg }}
-      handleIndicatorStyle={{ backgroundColor: shade(current?.pin_color ?? colors.pink, 0.25), width: 44 }}
+      backgroundStyle={{ backgroundColor: colors.paper, borderRadius: radius.lg }}
+      handleIndicatorStyle={{ backgroundColor: colors.line, width: 40 }}
     >
       <BottomSheetView style={{ flex: 1 }}>
         <FlatList
@@ -76,7 +76,7 @@ export function MemberSheet({ members, selectedId, onSelect }: Props) {
             {members.map((m, i) => (
               <View
                 key={m.id}
-                style={[styles.dot, i === index && { backgroundColor: shade(m.pin_color, 0.35), width: 16 }]}
+                style={[styles.dot, i === index && { backgroundColor: colors.ink, width: 14 }]}
               />
             ))}
           </View>
@@ -87,20 +87,20 @@ export function MemberSheet({ members, selectedId, onSelect }: Props) {
 }
 
 function MemberCard({ member, width }: { member: MapMember; width: number }) {
+  const uid = useUserId();
   const since = monthYear(member.location_updated_at);
   const job = [member.job_title, member.company].filter(Boolean).join(' · ');
   const socials = socialLinks(member.socials);
-  const accent = shade(member.pin_color, 0.55);
 
   return (
     <View style={[styles.card, { width }]}>
       <View style={styles.header}>
-        <Avatar name={member.display_name} url={member.avatar_url} color={member.pin_color} size={76} ring={5} />
+        <Avatar name={member.display_name} url={member.avatar_url} color={member.pin_color} size={64} ring={3} />
         <View style={{ flex: 1, gap: 2 }}>
-          <T variant="heading" style={{ fontSize: 22 }} numberOfLines={1}>
+          <T variant="title" style={{ fontSize: 24, lineHeight: 28 }} numberOfLines={1}>
             {member.display_name} {member.pin_emoji ?? ''}
           </T>
-          <T style={{ fontFamily: fonts.bold, color: accent }} numberOfLines={1}>
+          <T style={{ fontFamily: fonts.medium, color: colors.inkSoft }} numberOfLines={1}>
             {countryFlag(member.country_code)} {member.city}
             {member.country ? `, ${member.country}` : ''}
           </T>
@@ -109,9 +109,12 @@ function MemberCard({ member, width }: { member: MapMember; width: number }) {
       </View>
 
       {job ? (
-        <T style={{ fontFamily: fonts.semibold }} numberOfLines={1}>
-          💼 {job}
-        </T>
+        <View style={styles.line}>
+          <Icon name="briefcase" size={15} color={colors.inkSoft} />
+          <T style={{ fontFamily: fonts.medium, flex: 1 }} numberOfLines={1}>
+            {job}
+          </T>
+        </View>
       ) : null}
       {member.bio ? (
         <T numberOfLines={3} style={{ color: colors.inkSoft }}>
@@ -119,12 +122,15 @@ function MemberCard({ member, width }: { member: MapMember; width: number }) {
         </T>
       ) : null}
 
-      <Button
-        label={t('member.openCard')}
-        color={member.pin_color}
-        onPress={() => router.push({ pathname: '/friend/[id]', params: { id: member.id } })}
-        style={{ minHeight: 42 }}
-      />
+      {member.id !== uid ? (
+        <Button
+          label={t('member.openCard')}
+          kind="secondary"
+          icon="user"
+          onPress={() => router.push({ pathname: '/friend/[id]', params: { id: member.id } })}
+          style={{ minHeight: 42 }}
+        />
+      ) : null}
 
       {socials.length > 0 ? (
         <View style={styles.socials}>
@@ -134,9 +140,7 @@ function MemberCard({ member, width }: { member: MapMember; width: number }) {
               onPress={() => Linking.openURL(s.url)}
               style={({ pressed }) => [styles.social, { opacity: pressed ? 0.7 : 1 }]}
             >
-              <T style={{ fontFamily: fonts.bold, fontSize: 14, color: accent }}>
-                {SOCIALS[s.key].icon} {SOCIALS[s.key].label}
-              </T>
+              <T style={{ fontFamily: fonts.medium, fontSize: 14 }}>{SOCIALS[s.key].label}</T>
             </Pressable>
           ))}
         </View>
@@ -145,11 +149,11 @@ function MemberCard({ member, width }: { member: MapMember; width: number }) {
   );
 }
 
-export const SOCIALS: Record<SocialKey, { label: string; icon: string; placeholder: string; url: (v: string) => string }> = {
-  instagram: { label: 'Instagram', icon: '📸', placeholder: t('social.handle'), url: (v) => `https://instagram.com/${v.replace(/^@/, '')}` },
-  linkedin: { label: 'LinkedIn', icon: '💼', placeholder: t('social.handleOrUrl'), url: (v) => `https://www.linkedin.com/in/${v}` },
-  x: { label: 'X', icon: '🐦', placeholder: t('social.handle'), url: (v) => `https://x.com/${v.replace(/^@/, '')}` },
-  website: { label: t('social.website'), icon: '🌐', placeholder: t('social.sitePlaceholder'), url: (v) => `https://${v}` },
+export const SOCIALS: Record<SocialKey, { label: string; placeholder: string; url: (v: string) => string }> = {
+  instagram: { label: 'Instagram', placeholder: t('social.handle'), url: (v) => `https://instagram.com/${v.replace(/^@/, '')}` },
+  linkedin: { label: 'LinkedIn', placeholder: t('social.handleOrUrl'), url: (v) => `https://www.linkedin.com/in/${v}` },
+  x: { label: 'X', placeholder: t('social.handle'), url: (v) => `https://x.com/${v.replace(/^@/, '')}` },
+  website: { label: t('social.website'), placeholder: t('social.sitePlaceholder'), url: (v) => `https://${v}` },
 };
 
 function socialLinks(socials: MapMember['socials']) {
@@ -164,7 +168,8 @@ const styles = StyleSheet.create({
   card: { paddingHorizontal: 24, paddingTop: 8, gap: 12 },
   header: { flexDirection: 'row', alignItems: 'center', gap: 16 },
   socials: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 4 },
-  social: { paddingHorizontal: 14, paddingVertical: 8, borderRadius: radius.pill, backgroundColor: colors.paper },
+  social: { paddingHorizontal: 12, paddingVertical: 6, borderRadius: radius.pill, backgroundColor: colors.muted },
+  line: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   dots: { flexDirection: 'row', justifyContent: 'center', gap: 6, paddingBottom: 24 },
   dot: { width: 6, height: 6, borderRadius: 3, backgroundColor: '#00000022' },
 });

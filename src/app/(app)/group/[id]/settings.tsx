@@ -6,10 +6,11 @@ import { Pressable, StyleSheet, View } from 'react-native';
 import { Avatar } from '@/components/Avatar';
 import { ConfirmButton, GroupForm } from '@/components/GroupForm';
 import { InviteButton } from '@/components/InviteButton';
-import { Button, ErrorText, Loading, Screen, T } from '@/components/ui';
+import { Chip, Hero } from '@/components/Tiles';
+import { Button, ErrorText, Icon, Loading, Screen, SectionCard, T } from '@/components/ui';
 import { useUserId } from '@/lib/auth';
 import { countryFlag } from '@/lib/geo';
-import { t } from '@/lib/i18n';
+import { t, tn } from '@/lib/i18n';
 import { inviteUrl } from '@/lib/invite';
 import {
   useGroup,
@@ -19,7 +20,7 @@ import {
   useRemoveMember,
   useUpdateGroup,
 } from '@/lib/queries';
-import { colors, fonts, radius, shade, tint } from '@/lib/theme';
+import { colors, fonts, radius, tint } from '@/lib/theme';
 
 export default function GroupSettings() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -45,32 +46,39 @@ export default function GroupSettings() {
   }
 
   return (
-    <Screen scroll>
-      <View style={[styles.invite, { backgroundColor: tint(g.color, 0.4) }]}>
-        <T variant="label" style={{ color: shade(g.color, 0.55) }}>
-          {t('settings.inviteCode')}
-        </T>
-        <Pressable onPress={copy}>
+    <Screen scroll edges={['bottom']}>
+      <Hero
+        color={g.color}
+        eyebrow={t('settings.title')}
+        title={g.name}
+        badge={<T style={{ fontSize: 40 }}>{g.emoji}</T>}
+      >
+        <Chip icon="users" label={tn('common.members', members.data?.length ?? g.member_count)} />
+      </Hero>
+
+      <SectionCard icon="send" title={t('settings.inviteCode')}>
+        <Pressable onPress={copy} style={[styles.codeBox, { backgroundColor: tint(g.color, 0.8), borderColor: tint(g.color, 0.35) }]}>
           <T style={styles.code}>{g.invite_code}</T>
-          <T variant="caption" style={{ textAlign: 'center' }}>
-            {copied ? t('common.linkCopied') : t('settings.tapToCopy')}
-          </T>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+            <Icon name={copied ? 'check' : 'copy'} size={13} color={colors.inkSoft} />
+            <T variant="caption">{copied ? t('common.linkCopied') : t('settings.tapToCopy')}</T>
+          </View>
         </Pressable>
         <InviteButton group={g} />
         {isAdmin ? (
           <Button
             label={t('settings.regenerate')}
             kind="ghost"
+            icon="refresh-cw"
             loading={regenerate.isPending}
             onPress={() => regenerate.mutate()}
           />
         ) : null}
         <ErrorText error={regenerate.error} />
-      </View>
+      </SectionCard>
 
       {isAdmin ? (
-        <View style={{ gap: 12 }}>
-          <T variant="heading">{t('settings.group')}</T>
+        <SectionCard icon="edit-3" title={t('settings.group')}>
           <GroupForm
             initial={{ name: g.name, emoji: g.emoji, color: g.color }}
             submitLabel={t('common.save')}
@@ -78,33 +86,34 @@ export default function GroupSettings() {
             error={update.error}
             onSubmit={(values) => update.mutate(values)}
           />
-        </View>
+        </SectionCard>
       ) : null}
 
-      <View style={{ gap: 10 }}>
-        <T variant="heading">{t('settings.members', { count: members.data?.length ?? g.member_count })}</T>
+      <SectionCard icon="users" title={t('settings.members', { count: members.data?.length ?? g.member_count })}>
         <ErrorText error={members.error ?? remove.error} />
-        {members.data?.map((m) => (
-          <View key={m.profile.id} style={styles.member}>
+        {members.data?.map((m, i) => (
+          <View key={m.profile.id} style={[styles.member, i > 0 && styles.divider]}>
             <Avatar name={m.profile.display_name} url={m.profile.avatar_url} color={m.profile.pin_color} size={44} />
-            <View style={{ flex: 1 }}>
-              <T style={{ fontFamily: fonts.bold }}>
-                {m.profile.display_name}
-                {m.profile.id === uid ? t('settings.you') : ''}
-                {m.role === 'admin' ? ' 👑' : ''}
-              </T>
+            <View style={{ flex: 1, gap: 2 }}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                <T style={{ fontFamily: fonts.semibold }}>
+                  {m.profile.display_name}
+                  {m.profile.id === uid ? t('settings.you') : ''}
+                </T>
+                {m.role === 'admin' ? <Chip label={t('settings.admin')} /> : null}
+              </View>
               <T variant="caption">
                 {m.profile.city ? `${countryFlag(m.profile.country_code)} ${m.profile.city}` : t('settings.noPin')}
               </T>
             </View>
             {isAdmin && m.profile.id !== uid ? (
               <Pressable onPress={() => remove.mutate(m.profile.id)} hitSlop={8} accessibilityLabel={t('settings.removeA11y')}>
-                <T style={{ color: colors.danger, fontFamily: fonts.bold }}>{t('settings.remove')}</T>
+                <T style={{ color: colors.danger, fontFamily: fonts.medium }}>{t('settings.remove')}</T>
               </Pressable>
             ) : null}
           </View>
         ))}
-      </View>
+      </SectionCard>
 
       <ErrorText error={leave.error} />
       <ConfirmButton
@@ -118,7 +127,8 @@ export default function GroupSettings() {
 }
 
 const styles = StyleSheet.create({
-  invite: { padding: 20, gap: 12, borderRadius: radius.lg },
-  code: { fontFamily: fonts.black, fontSize: 36, letterSpacing: 6, textAlign: 'center', color: colors.ink },
-  member: { flexDirection: 'row', alignItems: 'center', gap: 12, padding: 10, borderRadius: radius.md, backgroundColor: colors.paper },
+  codeBox: { alignItems: 'center', gap: 6, paddingVertical: 18, borderRadius: radius.md, borderWidth: 1.5, borderStyle: 'dashed' },
+  code: { fontFamily: fonts.displayHeavy, fontSize: 38, letterSpacing: 4, color: colors.ink },
+  member: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 10 },
+  divider: { borderTopWidth: 1, borderTopColor: colors.line },
 });

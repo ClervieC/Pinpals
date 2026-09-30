@@ -11,7 +11,7 @@ export default function NewMemory() {
   const create = useCreateMemory();
 
   return (
-    <Screen scroll>
+    <Screen scroll edges={['bottom']}>
       <MemoryForm
         defaultGroupId={groupId ?? null}
         defaultPeople={friendId ? [friendId] : []}
@@ -20,7 +20,8 @@ export default function NewMemory() {
         error={create.error}
         onSubmit={(values) =>
           create.mutate(values, {
-            onSuccess: (id) => router.replace({ pathname: '/memory/[id]', params: { id } }),
+            onSuccess: ({ id, photoError }) =>
+              router.replace({ pathname: '/memory/[id]', params: photoError ? { id, photoError: '1' } : { id } }),
           })
         }
       />

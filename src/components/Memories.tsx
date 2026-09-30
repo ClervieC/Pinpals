@@ -1,17 +1,20 @@
 import { Image } from 'expo-image';
 import * as ImagePicker from 'expo-image-picker';
 import { Link } from 'expo-router';
-import { Pressable, StyleSheet, View } from 'react-native';
+import { Platform, Pressable, StyleSheet, View } from 'react-native';
 
 import { formatDateRange, t } from '@/lib/i18n';
 import { useSignedUrls } from '@/lib/queries';
-import { colors, fonts, pastels, radius, tint } from '@/lib/theme';
+import { colors, pastels, radius, shade, tint } from '@/lib/theme';
 import type { MemorySummary } from '@/lib/types';
 
-import { ErrorText, T } from './ui';
+import { AddTile, Chip, Grid } from './Tiles';
+import { EmptyState, ErrorText, Icon, T } from './ui';
 
-/** Galerie : choix multiple, JPEG compressé en base64 (même pipeline que les avatars). */
-export async function pickPhotos(): Promise<{ base64: string; mimeType: string }[]> {
+export type PickedPhoto = { base64: string; mimeType: string; uri: string };
+
+/** Galerie : choix multiple, compressé en base64 (même pipeline que les avatars). */
+export async function pickPhotos(): Promise<PickedPhoto[]> {
   const result = await ImagePicker.launchImageLibraryAsync({
     mediaTypes: ['images'],
     allowsMultipleSelection: true,
@@ -20,119 +23,174 @@ export async function pickPhotos(): Promise<{ base64: string; mimeType: string }
     base64: true,
   });
   if (result.canceled) return [];
-  // `base64` est toujours du JPEG, quel que soit le format d'origine.
-  return result.assets.flatMap((a) => (a.base64 ? [{ base64: a.base64, mimeType: 'image/jpeg' }] : []));
+  // Sur mobile, `base64` est toujours du JPEG ; sur le web, c'est le fichier d'origine.
+  return result.assets.flatMap((a) =>
+    a.base64
+      ? [{ base64: a.base64, uri: a.uri, mimeType: Platform.OS === 'web' ? (a.mimeType ?? 'image/jpeg') : 'image/jpeg' }]
+      : [],
+  );
 }
 
-// Une légère rotation par souvenir, stable d'un rendu à l'autre : effet scrapbook.
-function tilt(id: string): number {
+// Une couleur par souvenir, stable d'un rendu à l'autre, pour les couvertures sans photo.
+export function colorFor(id: string): string {
   const n = [...id].reduce((acc, c) => acc + c.charCodeAt(0), 0);
-  return ((n % 5) - 2) * 0.8;
-}
-
-function paperColor(id: string): string {
-  const n = [...id].reduce((acc, c) => acc + c.charCodeAt(0), 0);
-  return tint(pastels[n % pastels.length], 0.7);
+  return pastels[n % pastels.length];
 }
 
 export function MemoryCard({ memory, coverUrl }: { memory: MemorySummary; coverUrl?: string }) {
   const when = formatDateRange(memory.happened_on, memory.ends_on);
+  const color = colorFor(memory.id);
   return (
+    // Style statique : sur le web, Link asChild ne transmet pas un style en fonction.
     <Link href={{ pathname: '/memory/[id]', params: { id: memory.id } }} asChild>
-      <Pressable
-        style={({ pressed }) => [
-          styles.polaroid,
-          { transform: [{ rotate: `${tilt(memory.id)}deg` }, { scale: pressed ? 0.98 : 1 }] },
-        ]}
-      >
-        <View style={[styles.photo, { backgroundColor: paperColor(memory.id) }]}>
+      <Pressable style={styles.card}>
+        <View style={[styles.cover, { backgroundColor: tint(color, 0.55) }]}>
           {coverUrl ? (
             <Image source={{ uri: coverUrl }} style={StyleSheet.absoluteFill} contentFit="cover" transition={150} />
           ) : (
-            <T style={{ fontSize: 44 }}>{memory.kind === 'trip' ? '✈️' : '📸'}</T>
+            <Icon name={memory.kind === 'trip' ? 'navigation' : 'camera'} size={34} color={shade(color, 0.15)} />
           )}
-          {memory.photo_count > 1 ? (
-            <View style={styles.count}>
-              <T style={{ fontFamily: fonts.bold, fontSize: 12 }}>📷 {memory.photo_count}</T>
-            </View>
-          ) : null}
+          <View style={styles.badges}>
+            {memory.kind === 'trip' ? (
+              <Chip icon="navigation" label={t('memory.kind.trip')} tone="accent" />
+            ) : null}
+            {memory.photo_count > 0 ? <Chip icon="image" label={String(memory.photo_count)} /> : null}
+          </View>
         </View>
-        <T style={styles.title} numberOfLines={1}>
-          {memory.kind === 'trip' ? '✈️ ' : ''}
-          {memory.title}
-        </T>
-        {when || memory.place ? (
-          <T variant="caption" numberOfLines={1}>
-            {[memory.place, when].filter(Boolean).join(' · ')}
-          </T>
-        ) : null}
+        <View style={styles.body}>
+          <View style={{ flex: 1, gap: 2 }}>
+            <T variant="heading" style={{ fontSize: 20 }} numberOfLines={1}>
+              {memory.title}
+            </T>
+            {when || memory.place ? (
+              <T variant="caption" numberOfLines={1}>
+                {[memory.place, when].filter(Boolean).join(' · ')}
+              </T>
+            ) : null}
+          </View>
+          <View style={[styles.arrow, { backgroundColor: tint(color, 0.75) }]}>
+            <Icon name="arrow-up-right" size={18} color={shade(color, 0.45)} />
+          </View>
+        </View>
       </Pressable>
     </Link>
   );
 }
 
-/** Grille de polaroids, deux par ligne. */
-export function MemoryGrid({ memories, error }: { memories: MemorySummary[]; error?: unknown }) {
+/** Grille de souvenirs (deux colonnes sur grand écran), avec la tuile d'ajout en dernier. */
+export function MemoryGrid({
+  memories,
+  error,
+  onAdd,
+}: {
+  memories: MemorySummary[];
+  error?: unknown;
+  onAdd?: () => void;
+}) {
   const covers = memories.flatMap((m) => (m.cover_path ? [m.cover_path] : []));
   const urls = useSignedUrls(covers);
 
   return (
     <View style={{ gap: 12 }}>
       <ErrorText error={error ?? urls.error} />
-      <View style={styles.grid}>
+      <Grid>
         {memories.map((m) => (
-          <View key={m.id} style={styles.cell}>
-            <MemoryCard memory={m} coverUrl={m.cover_path ? urls.data?.[m.cover_path] : undefined} />
-          </View>
+          <MemoryCard key={m.id} memory={m} coverUrl={m.cover_path ? urls.data?.[m.cover_path] : undefined} />
         ))}
-      </View>
+        {onAdd ? <AddTile label={t('memories.add')} body={t('memories.addBody')} icon="camera" onPress={onAdd} /> : null}
+      </Grid>
     </View>
+  );
+}
+
+/** Souvenir mis en avant (le plus récent) : ses premières photos en éventail sur un grand bandeau. */
+export function FeaturedMemory({ memory }: { memory: MemorySummary }) {
+  const urls = useSignedUrls(memory.photo_paths);
+  const color = colorFor(memory.id);
+  const when = formatDateRange(memory.happened_on, memory.ends_on);
+  const tilts = ['-6deg', '3deg', '-2deg'];
+
+  return (
+    <Link href={{ pathname: '/memory/[id]', params: { id: memory.id } }} asChild>
+      <Pressable style={styles.card}>
+        <View style={[styles.featuredCover, { backgroundColor: tint(color, 0.55) }]}>
+          {memory.photo_paths.length ? (
+            <View style={styles.fan}>
+              {memory.photo_paths.map((path, i) => (
+                <View key={path} style={[styles.polaroid, { transform: [{ rotate: tilts[i] }, { translateY: i === 1 ? -8 : 0 }] }]}>
+                  {urls.data?.[path] ? (
+                    <Image source={{ uri: urls.data[path] }} style={styles.polaroidPhoto} contentFit="cover" transition={150} />
+                  ) : (
+                    <View style={[styles.polaroidPhoto, { backgroundColor: tint(color, 0.3) }]} />
+                  )}
+                </View>
+              ))}
+            </View>
+          ) : (
+            <Icon name={memory.kind === 'trip' ? 'navigation' : 'camera'} size={40} color={shade(color, 0.15)} />
+          )}
+          <View style={styles.badges}>
+            {memory.kind === 'trip' ? <Chip icon="navigation" label={t('memory.kind.trip')} tone="accent" /> : null}
+            {memory.photo_count > 0 ? <Chip icon="image" label={String(memory.photo_count)} /> : null}
+          </View>
+        </View>
+        <View style={styles.body}>
+          <View style={{ flex: 1, gap: 2 }}>
+            <T variant="title" style={{ fontSize: 24, lineHeight: 28 }} numberOfLines={1}>
+              {memory.title}
+            </T>
+            {when || memory.place ? (
+              <T variant="caption" numberOfLines={1}>
+                {[memory.place, when].filter(Boolean).join(' · ')}
+              </T>
+            ) : null}
+          </View>
+          <View style={[styles.arrow, { backgroundColor: tint(color, 0.75) }]}>
+            <Icon name="arrow-up-right" size={18} color={shade(color, 0.45)} />
+          </View>
+        </View>
+      </Pressable>
+    </Link>
   );
 }
 
 export function EmptyMemories({ hint }: { hint?: string }) {
   return (
-    <View style={styles.empty}>
-      <T style={{ fontSize: 48 }}>📔</T>
-      <T variant="heading" style={{ textAlign: 'center' }}>
-        {t('memories.empty.title')}
-      </T>
-      <T style={{ textAlign: 'center', color: colors.inkSoft }}>{hint ?? t('memories.empty.body')}</T>
-    </View>
+    <EmptyState
+      icon="camera"
+      color={pastels[6]}
+      title={t('memories.empty.title')}
+      body={hint ?? t('memories.empty.body')}
+    />
   );
 }
 
 const styles = StyleSheet.create({
-  grid: { flexDirection: 'row', flexWrap: 'wrap', marginHorizontal: -6 },
-  cell: { width: '50%', padding: 6 },
-  polaroid: {
-    backgroundColor: colors.paper,
-    padding: 8,
-    paddingBottom: 12,
-    borderRadius: 6,
-    gap: 4,
-    shadowColor: '#5E5169',
-    shadowOpacity: 0.12,
-    shadowRadius: 8,
-    shadowOffset: { width: 0, height: 3 },
-    elevation: 2,
-  },
-  photo: {
-    aspectRatio: 1,
-    borderRadius: 3,
+  card: {
+    borderRadius: radius.lg,
     overflow: 'hidden',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  count: {
-    position: 'absolute',
-    right: 6,
-    bottom: 6,
-    paddingHorizontal: 8,
-    paddingVertical: 2,
-    borderRadius: radius.pill,
     backgroundColor: colors.paper,
+    borderWidth: 1,
+    borderColor: colors.line,
   },
-  title: { fontFamily: fonts.black, fontSize: 15, marginTop: 4 },
-  empty: { alignItems: 'center', gap: 10, paddingVertical: 32 },
+  cover: { height: 150, alignItems: 'center', justifyContent: 'center' },
+  badges: { position: 'absolute', left: 12, top: 12, flexDirection: 'row', gap: 6 },
+  body: { flexDirection: 'row', alignItems: 'flex-end', gap: 12, padding: 16 },
+  arrow: { width: 38, height: 38, borderRadius: 19, alignItems: 'center', justifyContent: 'center' },
+  featuredCover: { height: 200, alignItems: 'center', justifyContent: 'center' },
+  fan: { flexDirection: 'row', gap: 8 },
+  polaroid: {
+    width: 100,
+    height: 118,
+    padding: 5,
+    paddingBottom: 18,
+    borderRadius: 6,
+    backgroundColor: colors.paper,
+    shadowColor: '#000',
+    shadowOpacity: 0.14,
+    shadowRadius: 8,
+    shadowOffset: { width: 0, height: 4 },
+    elevation: 3,
+  },
+  polaroidPhoto: { flex: 1, borderRadius: 3 },
 });

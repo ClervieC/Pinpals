@@ -5,8 +5,9 @@ import { Pressable, StyleSheet, View } from 'react-native';
 
 import { Avatar } from '@/components/Avatar';
 import { ConfirmButton } from '@/components/GroupForm';
-import { pickPhotos } from '@/components/Memories';
-import { Button, ErrorText, Loading, Screen, T } from '@/components/ui';
+import { colorFor, pickPhotos } from '@/components/Memories';
+import { Chip, Hero } from '@/components/Tiles';
+import { Button, ErrorText, Icon, Loading, Screen, SectionCard, T } from '@/components/ui';
 import { useUserId } from '@/lib/auth';
 import { formatDateRange, t } from '@/lib/i18n';
 import {
@@ -19,12 +20,12 @@ import {
   useMyProfile,
   useSignedUrls,
 } from '@/lib/queries';
-import { colors, fonts, radius, tint } from '@/lib/theme';
+import { colors, fonts, radius, shade, tint } from '@/lib/theme';
 import type { MemoryPhoto } from '@/lib/types';
 
 /** Une page du scrapbook : récit, personnes, photos. Toute l'audience peut ajouter des photos. */
 export default function MemoryScreen() {
-  const { id } = useLocalSearchParams<{ id: string }>();
+  const { id, photoError } = useLocalSearchParams<{ id: string; photoError?: string }>();
   const uid = useUserId();
   const memory = useMemory(id);
   const groups = useMyGroups();
@@ -55,6 +56,8 @@ export default function MemoryScreen() {
     return p ? [p] : [];
   });
   const when = formatDateRange(m.happened_on, m.ends_on);
+  const color = colorFor(m.id);
+  const coverUrl = m.photos[0] ? urls.data?.[m.photos[0].path] : undefined;
 
   async function add() {
     const images = await pickPhotos();
@@ -62,34 +65,40 @@ export default function MemoryScreen() {
   }
 
   return (
-    <Screen scroll>
+    <Screen scroll edges={['bottom']}>
       <Stack.Screen
         options={{
-          title: m.kind === 'trip' ? t('memory.kind.trip') : t('memory.kind.memory'),
+          title: '',
           headerRight: isAuthor
             ? () => (
-                <Pressable onPress={() => router.push({ pathname: '/memory/edit/[id]', params: { id } })} hitSlop={8}>
-                  <T style={{ fontFamily: fonts.bold }}>{t('memory.edit.button')}</T>
+                <Pressable
+                  onPress={() => router.push({ pathname: '/memory/edit/[id]', params: { id } })}
+                  hitSlop={8}
+                  style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}
+                >
+                  <Icon name="edit-2" size={15} />
+                  <T style={{ fontFamily: fonts.medium }}>{t('memory.edit.button')}</T>
                 </Pressable>
               )
             : undefined,
         }}
       />
 
-      <View style={styles.page}>
-        <T variant="title">{m.title}</T>
-        {when || m.place ? (
-          <T style={{ fontFamily: fonts.bold, color: colors.inkSoft }}>
-            {[m.place ? `📍 ${m.place}` : null, when ? `🗓️ ${when}` : null].filter(Boolean).join('   ')}
-          </T>
-        ) : null}
-        {group ? (
-          <T variant="caption">
-            {group.emoji} {group.name}
-          </T>
-        ) : null}
-        {m.body ? <T style={{ marginTop: 6 }}>{m.body}</T> : null}
-
+      <Hero
+        color={color}
+        eyebrow={m.kind === 'trip' ? t('memory.kind.trip') : t('memory.kind.memory')}
+        title={m.title}
+        badge={<Icon name={m.kind === 'trip' ? 'navigation' : 'camera'} size={30} color={shade(color, 0.2)} />}
+        cover={
+          coverUrl ? <Image source={{ uri: coverUrl }} style={StyleSheet.absoluteFill} contentFit="cover" transition={150} /> : undefined
+        }
+      >
+        <View style={styles.chips}>
+          {m.place ? <Chip icon="map-pin" label={m.place} /> : null}
+          {when ? <Chip icon="calendar" label={when} /> : null}
+          {group ? <Chip icon="users" label={`${group.emoji} ${group.name}`} /> : null}
+        </View>
+        {m.body ? <T style={{ lineHeight: 24, marginTop: 4 }}>{m.body}</T> : null}
         {people.length ? (
           <View style={styles.people}>
             {people.map((p) => (
@@ -98,46 +107,57 @@ export default function MemoryScreen() {
                 onPress={() => p.id !== uid && router.push({ pathname: '/friend/[id]', params: { id: p.id } })}
                 style={styles.person}
               >
-                <Avatar name={p.display_name} url={p.avatar_url} color={p.pin_color} size={30} ring={2} />
-                <T style={{ fontFamily: fonts.semibold, fontSize: 14 }}>{p.display_name}</T>
+                <Avatar name={p.display_name} url={p.avatar_url} color={p.pin_color} size={26} ring={2} />
+                <T style={{ fontFamily: fonts.medium, fontSize: 14 }}>{p.display_name}</T>
               </Pressable>
             ))}
           </View>
         ) : null}
-      </View>
+      </Hero>
 
-      <Button label={t('memory.addPhotos')} onPress={add} loading={addPhotos.isPending} />
-      <ErrorText error={addPhotos.error ?? deletePhoto.error ?? urls.error} />
-
-      <View style={styles.grid}>
-        {m.photos.map((photo, i) => (
-          <Pressable
-            key={photo.id}
-            onPress={() => setSelected(selected?.id === photo.id ? null : photo)}
-            style={[styles.cell, { transform: [{ rotate: `${((i % 3) - 1) * 1.5}deg` }] }]}
-          >
-            <View style={styles.polaroid}>
-              {urls.data?.[photo.path] ? (
-                <Image source={{ uri: urls.data[photo.path] }} style={styles.photo} contentFit="cover" transition={150} />
-              ) : (
-                <View style={[styles.photo, { backgroundColor: tint(colors.pink, 0.7) }]} />
-              )}
+      <SectionCard icon="image" title={t('memory.photos', { count: m.photos.length })}>
+        <View style={styles.grid}>
+          {m.photos.map((photo) => (
+            <Pressable
+              key={photo.id}
+              onPress={() => setSelected(selected?.id === photo.id ? null : photo)}
+              style={styles.cell}
+            >
+              <View style={[styles.photoWrap, selected?.id === photo.id && styles.photoSelected]}>
+                {urls.data?.[photo.path] ? (
+                  <Image source={{ uri: urls.data[photo.path] }} style={styles.photo} contentFit="cover" transition={150} />
+                ) : (
+                  <View style={[styles.photo, { backgroundColor: colors.muted }]} />
+                )}
+              </View>
+            </Pressable>
+          ))}
+          <Pressable onPress={add} disabled={addPhotos.isPending} style={styles.cell}>
+            <View style={[styles.photo, styles.addTile]}>
+              <Icon name={addPhotos.isPending ? 'loader' : 'camera'} size={22} color={colors.accent} />
+              <T variant="caption" style={{ color: colors.accent, fontFamily: fonts.medium }}>
+                {t('memory.addPhotos')}
+              </T>
             </View>
           </Pressable>
-        ))}
-      </View>
+        </View>
+        <ErrorText
+          error={addPhotos.error ?? deletePhoto.error ?? urls.error ?? (photoError && !addPhotos.isSuccess ? t('memory.photoUploadFailed') : null)}
+        />
+      </SectionCard>
 
       {selected && (selected.uploaded_by === uid || isAuthor) ? (
         <Button
           label={t('memory.deletePhoto')}
-          kind="danger"
+          kind="secondary"
+          icon="trash-2"
           loading={deletePhoto.isPending}
           onPress={() => deletePhoto.mutate(selected, { onSuccess: () => setSelected(null) })}
         />
       ) : null}
 
       {isAuthor ? (
-        <>
+        <View style={{ marginTop: 16 }}>
           <ErrorText error={deleteMemory.error} />
           <ConfirmButton
             label={t('memory.delete')}
@@ -150,28 +170,41 @@ export default function MemoryScreen() {
               )
             }
           />
-        </>
+        </View>
       ) : null}
     </Screen>
   );
 }
 
 const styles = StyleSheet.create({
-  page: { padding: 18, gap: 8, borderRadius: radius.lg, backgroundColor: colors.paper },
-  people: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 8 },
-  person: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingRight: 10, borderRadius: radius.pill, backgroundColor: colors.cream },
-  grid: { flexDirection: 'row', flexWrap: 'wrap', marginHorizontal: -6 },
-  cell: { width: '50%', padding: 8 },
-  polaroid: {
+  chips: { flexDirection: 'row', flexWrap: 'wrap', gap: 6 },
+  people: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 4 },
+  person: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingLeft: 3,
+    paddingRight: 10,
+    paddingVertical: 3,
+    borderRadius: radius.pill,
     backgroundColor: colors.paper,
-    padding: 6,
-    paddingBottom: 18,
-    borderRadius: 4,
-    shadowColor: '#5E5169',
-    shadowOpacity: 0.14,
-    shadowRadius: 8,
-    shadowOffset: { width: 0, height: 3 },
-    elevation: 2,
+    borderWidth: 1,
+    borderColor: colors.line,
   },
-  photo: { width: '100%', aspectRatio: 1, borderRadius: 2 },
+  grid: { flexDirection: 'row', flexWrap: 'wrap', marginHorizontal: -4 },
+  cell: { width: '33.33%', padding: 4 },
+  photoWrap: { borderRadius: radius.sm, overflow: 'hidden', borderWidth: 2, borderColor: 'transparent' },
+  photoSelected: { borderColor: colors.ink },
+  photo: { width: '100%', aspectRatio: 1 },
+  addTile: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 4,
+    padding: 6,
+    borderRadius: radius.sm,
+    borderWidth: 1.5,
+    borderStyle: 'dashed',
+    borderColor: tint(colors.accent, 0.4),
+    backgroundColor: tint(colors.accent, 0.92),
+  },
 });

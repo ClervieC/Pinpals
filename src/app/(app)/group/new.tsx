@@ -9,8 +9,8 @@ export default function NewGroup() {
   const create = useCreateGroup();
 
   return (
-    <Screen scroll>
-      <T>{t('group.new.body')}</T>
+    <Screen scroll edges={['bottom']}>
+      <T variant="caption" style={{ fontSize: 14 }}>{t('group.new.body')}</T>
       <GroupForm
         submitLabel={t('group.new.submit')}
         loading={create.isPending}

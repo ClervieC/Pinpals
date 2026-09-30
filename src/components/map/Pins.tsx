@@ -1,9 +1,11 @@
+import Feather from '@expo/vector-icons/Feather';
+import { Image } from 'expo-image';
 import { useEffect } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 import Animated, { useAnimatedStyle, useSharedValue, withDelay, withSpring } from 'react-native-reanimated';
 
 import { Avatar } from '@/components/Avatar';
-import { colors, fonts } from '@/lib/theme';
+import { colors, fonts, shade, tint } from '@/lib/theme';
 import type { MapMember } from '@/lib/types';
 
 export const PIN_SIZE = 52;
@@ -85,6 +87,65 @@ export function ClusterPin({ preview, count, delay = 0 }: { preview: MapMember[]
   );
 }
 
+/** Souvenir sur la carte : vignette photo (ou icône colorée) avec une pointe, légèrement penchée. */
+export function MemoryPin({
+  coverUrl,
+  color,
+  kind,
+  selected,
+  delay = 0,
+}: {
+  coverUrl?: string;
+  color: string;
+  kind: 'memory' | 'trip';
+  selected: boolean;
+  delay?: number;
+}) {
+  const drop = useSharedValue(0);
+  const scale = useSharedValue(1);
+  useEffect(() => {
+    drop.value = withDelay(delay, withSpring(1, { damping: 10, stiffness: 140 }));
+  }, [delay, drop]);
+  useEffect(() => {
+    scale.value = withSpring(selected ? 1.15 : 1, { damping: 12, stiffness: 220 });
+  }, [selected, scale]);
+
+  const animated = useAnimatedStyle(() => ({
+    opacity: drop.value,
+    transform: [{ translateY: (1 - drop.value) * -24 }, { scale: scale.value }],
+  }));
+
+  return (
+    <Animated.View style={[styles.memory, animated]}>
+      <View
+        style={[
+          styles.memoryFrame,
+          { transform: [{ rotate: kind === 'trip' ? '-4deg' : '4deg' }] },
+          selected && { borderColor: colors.accent },
+        ]}
+      >
+        {coverUrl ? (
+          <Image source={{ uri: coverUrl }} style={styles.memoryPhoto} contentFit="cover" />
+        ) : (
+          <View style={[styles.memoryPhoto, { backgroundColor: tint(color, 0.55), alignItems: 'center', justifyContent: 'center' }]}>
+            <Feather name={kind === 'trip' ? 'navigation' : 'camera'} size={20} color={shade(color, 0.2)} />
+          </View>
+        )}
+      </View>
+      <View style={[styles.pointer, { borderTopColor: selected ? colors.accent : colors.paper }]} />
+    </Animated.View>
+  );
+}
+
+/** Étape numérotée d'un voyage. */
+export function StopDot({ n }: { n: number }) {
+  return (
+    <View style={styles.stopDot}>
+      <Text style={styles.stopText}>{n}</Text>
+    </View>
+  );
+}
+
 const styles = StyleSheet.create({
   pin: { width: PIN_SIZE + 8, height: PIN_HEIGHT, alignItems: 'center' },
   shadow: {
@@ -134,4 +195,31 @@ const styles = StyleSheet.create({
     borderColor: colors.paper,
   },
   badgeText: { color: colors.paper, fontFamily: fonts.black, fontSize: 12 },
+  memory: { alignItems: 'center' },
+  memoryFrame: {
+    width: 58,
+    height: 58,
+    padding: 3,
+    borderRadius: 14,
+    backgroundColor: colors.paper,
+    borderWidth: 3,
+    borderColor: colors.paper,
+    shadowColor: '#000',
+    shadowOpacity: 0.18,
+    shadowRadius: 8,
+    shadowOffset: { width: 0, height: 4 },
+    elevation: 5,
+  },
+  memoryPhoto: { flex: 1, borderRadius: 9, overflow: 'hidden' },
+  stopDot: {
+    width: 26,
+    height: 26,
+    borderRadius: 13,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: colors.accent,
+    borderWidth: 3,
+    borderColor: colors.paper,
+  },
+  stopText: { color: colors.onAccent, fontFamily: fonts.bold, fontSize: 11 },
 });

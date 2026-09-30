@@ -1,9 +1,28 @@
 import type { MapMember } from '@/lib/types';
 
+export type MapLayer = 'friends' | 'memories';
+
+/** Un souvenir tel que la carte l'affiche : ses villes dans l'ordre, sa couverture. */
+export type MapMemory = {
+  id: string;
+  kind: 'memory' | 'trip';
+  title: string;
+  color: string;
+  coverUrl?: string;
+  stops: { lat: number; lng: number }[];
+};
+
 export type GroupMapProps = {
+  /** Ami·es (pins, piles) ou souvenirs (vignettes, trajets des voyages). */
+  layer: MapLayer;
   members: MapMember[];
   selectedId: string | null;
   onSelect: (id: string | null) => void;
+  /** Tap sur une pile : la fiche de la ville liste ses membres (même quand le zoom ne peut plus les séparer). */
+  onCluster: (members: MapMember[]) => void;
+  memories: MapMemory[];
+  selectedMemoryId: string | null;
+  onSelectMemory: (id: string | null) => void;
   /** Hauteur occupée en bas de l'écran (bottom sheet), pour centrer le pin sélectionné au-dessus. */
   bottomInset: number;
   topInset: number;

@@ -1,36 +1,46 @@
-import { Camera, type CameraRef, Map, Marker } from '@maplibre/maplibre-react-native';
+import { Camera, type CameraRef, GeoJSONSource, Layer, Map, Marker } from '@maplibre/maplibre-react-native';
 import { useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, StyleSheet, View } from 'react-native';
 
 import { ErrorText } from '@/components/ui';
 import { colors } from '@/lib/theme';
 
+import { focusTarget, layerBounds, ROUTE_LAYOUT, ROUTE_PAINT, routesGeoJSON, useGroupMarkers } from './markers';
 import { usePastelStyle } from './pastelStyle';
-import { ClusterPin, MemberPin } from './Pins';
 import { type GroupMapProps, initialView } from './types';
-import { useClusters } from './useClusters';
 
-export function GroupMap({ members, selectedId, onSelect, bottomInset, topInset }: GroupMapProps) {
+export function GroupMap(props: GroupMapProps) {
+  const { members, selectedId, selectedMemoryId, onSelect, onSelectMemory, bottomInset, topInset, layer } = props;
   const { style, error } = usePastelStyle();
   const camera = useRef<CameraRef>(null);
   // Cadre calculé une seule fois : la carte ne doit pas sauter quand les données se rafraîchissent.
   const [start] = useState(() => initialView(members));
   const [zoom, setZoom] = useState(start && 'zoom' in start ? start.zoom : 2);
-  const pins = useClusters(members, zoom);
+  const { markers, routes } = useGroupMarkers(props, zoom);
   const padding = { top: topInset + 40, bottom: bottomInset + 40, left: 50, right: 50 };
 
-  // Le pin sélectionné (tap ou swipe de card) est recentré au-dessus de la bottom sheet.
+  // La sélection (tap ou swipe de card) est recentrée au-dessus de la bottom sheet.
   useEffect(() => {
-    const m = selectedId ? members.find((x) => x.id === selectedId) : null;
-    if (!m) return;
+    const target = focusTarget(props, zoom);
+    if (!target) return;
     camera.current?.easeTo({
-      center: [m.lng, m.lat],
-      zoom: Math.max(zoom, 6),
+      ...target,
       padding: { top: topInset, bottom: bottomInset, left: 0, right: 0 },
       duration: 450,
     });
     // On ne recentre que lorsque la sélection change, pas à chaque zoom.
-  }, [selectedId]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [selectedId, selectedMemoryId]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Changement de calque : on recadre sur ce qu'il montre (le premier cadre vient d'initialViewState).
+  const firstLayer = useRef(true);
+  useEffect(() => {
+    if (firstLayer.current) {
+      firstLayer.current = false;
+      return;
+    }
+    const bounds = layerBounds(props);
+    if (bounds) camera.current?.fitBounds(bounds, { padding, duration: 600 });
+  }, [layer]); // eslint-disable-line react-hooks/exhaustive-deps
 
   if (error) {
     return (
@@ -56,7 +66,7 @@ export function GroupMap({ members, selectedId, onSelect, bottomInset, topInset 
       touchPitch={false}
       touchRotate={false}
       attributionPosition={{ bottom: bottomInset + 8, right: 8 }}
-      onPress={() => onSelect(null)}
+      onPress={() => (layer === 'friends' ? onSelect(null) : onSelectMemory(null))}
       onRegionDidChange={(e) => setZoom(e.nativeEvent.zoom)}
     >
       <Camera
@@ -65,30 +75,14 @@ export function GroupMap({ members, selectedId, onSelect, bottomInset, topInset 
         maxZoom={14}
         initialViewState={start ? { ...start, padding } : { center: [2.35, 30], zoom: 1.5 }}
       />
-      {pins.map((pin, i) =>
-        pin.kind === 'member' ? (
-          <Marker
-            key={pin.id}
-            id={pin.id}
-            lngLat={[pin.lng, pin.lat]}
-            anchor="bottom"
-            onPress={() => onSelect(pin.member.id)}
-          >
-            <MemberPin member={pin.member} selected={pin.member.id === selectedId} delay={i * 70} />
-          </Marker>
-        ) : (
-          <Marker
-            key={pin.id}
-            id={pin.id}
-            lngLat={[pin.lng, pin.lat]}
-            onPress={() =>
-              camera.current?.easeTo({ center: [pin.lng, pin.lat], zoom: pin.expansionZoom, duration: 500 })
-            }
-          >
-            <ClusterPin preview={pin.preview} count={pin.count} delay={i * 70} />
-          </Marker>
-        ),
-      )}
+      <GeoJSONSource id="routes" data={routesGeoJSON(routes)}>
+        <Layer id="routes-line" type="line" paint={ROUTE_PAINT} layout={ROUTE_LAYOUT} />
+      </GeoJSONSource>
+      {markers.map((m) => (
+        <Marker key={m.id} id={m.id} lngLat={[m.lng, m.lat]} anchor={m.anchor} onPress={m.onPress}>
+          {m.element}
+        </Marker>
+      ))}
     </Map>
   );
 }

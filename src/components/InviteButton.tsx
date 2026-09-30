@@ -31,5 +31,5 @@ export function InviteButton({ group, label = t('invite.button') }: { group: MyG
     await Share.share({ message });
   }
 
-  return <Button label={copied ? t('common.linkCopied') : label} color={group.color} onPress={invite} />;
+  return <Button label={copied ? t('common.linkCopied') : label} icon={copied ? 'check' : 'share'} onPress={invite} />;
 }

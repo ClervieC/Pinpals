@@ -1,35 +1,41 @@
 export const colors = {
-  cream: '#FFF6EC',
-  paper: '#FFFFFF',
-  ink: '#3D3346',
-  inkSoft: '#7A6F85',
-  line: '#EFE3D6',
-  pink: '#FFB5C2',
-  danger: '#E5677D',
+  cream: '#FBF7F2', // fond des écrans, blanc chaud
+  paper: '#FFFFFF', // cartes, champs
+  muted: '#F4EEE6', // remplissages discrets (segments, pastilles)
+  ink: '#1C1714',
+  inkSoft: '#7A716A',
+  line: '#ECE4DA',
+  accent: '#FF5A3C', // corail : boutons principaux, éléments actifs
+  onAccent: '#FFFFFF',
+  danger: '#E0352B',
 };
 
-/** Couleurs proposées pour l'anneau des pins et les groupes. */
+/** Couleurs proposées pour les pins et les groupes : vives mais pas criardes. */
 export const pastels = [
-  '#FFB5C2', // rose
-  '#FFD6A5', // pêche
-  '#FDFFB6', // citron
-  '#CAFFBF', // menthe
-  '#9BF6FF', // lagon
-  '#B5D8FF', // ciel
-  '#BDB2FF', // lavande
-  '#FFC6FF', // lilas
+  '#FF7A5C', // corail
+  '#FFB23F', // mangue
+  '#F7D046', // soleil
+  '#34C98B', // menthe
+  '#2EB8E6', // lagon
+  '#5B7CFA', // bleuet
+  '#9B6BFF', // violette
+  '#FF6FAE', // framboise
 ];
 
 export const groupEmojis = ['🎓', '🏫', '🧸', '🏡', '⚽️', '🎸', '💼', '✈️', '🌻', '🍕', '🎮', '💖'];
 
 export const fonts = {
-  regular: 'Nunito_400Regular',
-  semibold: 'Nunito_600SemiBold',
-  bold: 'Nunito_700Bold',
-  black: 'Nunito_800ExtraBold',
+  /** Titres : grotesque à caractère, pour le côté fun. */
+  display: 'BricolageGrotesque_700Bold',
+  displayHeavy: 'BricolageGrotesque_800ExtraBold',
+  regular: 'Inter_400Regular',
+  medium: 'Inter_500Medium',
+  semibold: 'Inter_600SemiBold',
+  bold: 'Inter_700Bold',
+  black: 'Inter_700Bold',
 };
 
-export const radius = { sm: 12, md: 18, lg: 24, pill: 999 };
+export const radius = { sm: 8, md: 12, lg: 16, pill: 999 };
 
 /** Mélange une couleur hex avec du blanc (amount = part de blanc, 0..1). */
 export function tint(hex: string, amount: number): string {

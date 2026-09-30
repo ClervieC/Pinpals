@@ -13,13 +13,13 @@ export default function EditMemory() {
   if (memory.isPending || !memory.data) return <Loading />;
 
   return (
-    <Screen scroll>
+    <Screen scroll edges={['bottom']}>
       <MemoryForm
         initial={memory.data}
         submitLabel={t('common.save')}
         loading={update.isPending}
         error={update.error}
-        onSubmit={({ groupId: _groupId, ...values }) => update.mutate(values, { onSuccess: () => router.back() })}
+        onSubmit={({ groupId: _groupId, photos: _photos, ...values }) => update.mutate(values, { onSuccess: () => router.back() })}
       />
     </Screen>
   );

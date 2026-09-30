@@ -1,25 +1,36 @@
-import { router, useLocalSearchParams } from 'expo-router';
+import { router, Stack, useLocalSearchParams } from 'expo-router';
 
-import { EmptyMemories, MemoryGrid } from '@/components/Memories';
-import { Button, Screen } from '@/components/ui';
+import { EmptyMemories } from '@/components/Memories';
+import { MemoryTimeline } from '@/components/MemoryTimeline';
+import { Button, ErrorText, PageHeader, Screen } from '@/components/ui';
 import { t } from '@/lib/i18n';
-import { useMemories } from '@/lib/queries';
+import { useGroup, useMemories } from '@/lib/queries';
 
 /** Le scrapbook d'un groupe. */
 export default function GroupMemories() {
   const { id } = useLocalSearchParams<{ id: string }>();
+  const group = useGroup(id);
   const memories = useMemories({ groupId: id });
+  const add = () => router.push({ pathname: '/memory/new', params: { groupId: id } });
 
   return (
-    <Screen scroll>
-      <Button
-        label={t('memories.add')}
-        onPress={() => router.push({ pathname: '/memory/new', params: { groupId: id } })}
+    <Screen scroll edges={['bottom']}>
+      <Stack.Screen options={{ title: '' }} />
+      <PageHeader
+        eyebrow={group.data ? `${group.data.emoji} ${group.data.name}` : null}
+        title={t('memories.timelineTitle')}
       />
       {memories.isPending ? null : memories.data?.length ? (
-        <MemoryGrid memories={memories.data} error={memories.error} />
+        <>
+          <Button label={t('memories.add')} icon="plus" onPress={add} />
+          <ErrorText error={memories.error} />
+          <MemoryTimeline memories={memories.data} />
+        </>
       ) : (
-        <EmptyMemories hint={t('memories.empty.group')} />
+        <>
+          <EmptyMemories hint={t('memories.empty.group')} />
+          <Button label={t('memories.add')} icon="plus" onPress={add} />
+        </>
       )}
     </Screen>
   );

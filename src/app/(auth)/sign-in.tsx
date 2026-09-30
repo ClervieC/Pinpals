@@ -3,10 +3,11 @@ import * as Linking from 'expo-linking';
 import { useState } from 'react';
 import { KeyboardAvoidingView, Platform, StyleSheet, View } from 'react-native';
 
-import { Button, ErrorText, Field, Screen, T } from '@/components/ui';
+import { FeatureBubbles, Logo } from '@/components/Logo';
+import { Button, Card, ErrorText, Field, Screen, T } from '@/components/ui';
 import { t } from '@/lib/i18n';
 import { supabase } from '@/lib/supabase';
-import { colors, pastels } from '@/lib/theme';
+import { colors } from '@/lib/theme';
 
 type Mode = 'sign-in' | 'sign-up';
 
@@ -79,19 +80,16 @@ export default function SignIn() {
     <Screen>
       <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={styles.body}>
         <View style={styles.hero}>
-          <View style={styles.pins}>
-            {pastels.slice(0, 5).map((c, i) => (
-              <View key={c} style={[styles.dot, { backgroundColor: c, marginTop: i % 2 ? 18 : 0 }]} />
-            ))}
-          </View>
-          <T variant="title" style={{ fontSize: 42 }}>
-            Pinpals
+          <Logo size={34} />
+          <FeatureBubbles />
+          <T variant="title" style={{ fontSize: 38, lineHeight: 42 }}>
+            {t('auth.headline')}
           </T>
-          <T style={{ color: colors.inkSoft, textAlign: 'center' }}>{t('auth.tagline')}</T>
+          <T style={{ color: colors.inkSoft }}>{t('auth.tagline')}</T>
         </View>
 
         {confirmSentTo ? (
-          <View style={{ gap: 14 }}>
+          <Card>
             <T variant="heading">{t('auth.confirm.title')}</T>
             <T>{t('auth.confirm.body', { email: confirmSentTo })}</T>
             <Button
@@ -101,9 +99,9 @@ export default function SignIn() {
                 switchMode('sign-in');
               }}
             />
-          </View>
+          </Card>
         ) : (
-          <View style={{ gap: 14 }}>
+          <Card>
             <T variant="heading">{isSignUp ? t('auth.signUp.title') : t('auth.signIn.title')}</T>
             <Field
               label={t('auth.email')}
@@ -138,7 +136,7 @@ export default function SignIn() {
               kind="ghost"
               onPress={() => switchMode(isSignUp ? 'sign-in' : 'sign-up')}
             />
-          </View>
+          </Card>
         )}
       </KeyboardAvoidingView>
     </Screen>
@@ -146,8 +144,6 @@ export default function SignIn() {
 }
 
 const styles = StyleSheet.create({
-  body: { flex: 1, justifyContent: 'center', gap: 40 },
-  hero: { alignItems: 'center', gap: 10 },
-  pins: { flexDirection: 'row', gap: 10, marginBottom: 12, height: 56 },
-  dot: { width: 34, height: 34, borderRadius: 17, borderWidth: 4, borderColor: colors.paper },
+  body: { flex: 1, justifyContent: 'center', gap: 28, width: '100%', maxWidth: 420, alignSelf: 'center' },
+  hero: { gap: 14 },
 });

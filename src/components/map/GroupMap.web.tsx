@@ -6,13 +6,11 @@ import { createPortal } from 'react-dom';
 import { ActivityIndicator, Pressable, StyleSheet, View } from 'react-native';
 
 import { ErrorText } from '@/components/ui';
-import { t } from '@/lib/i18n';
 import { colors } from '@/lib/theme';
 
+import { focusTarget, layerBounds, ROUTE_LAYOUT, ROUTE_PAINT, routesGeoJSON, useGroupMarkers } from './markers';
 import { usePastelStyle } from './pastelStyle';
-import { ClusterPin, MemberPin } from './Pins';
 import { type GroupMapProps, initialView } from './types';
-import { useClusters } from './useClusters';
 
 // Le worker est servi depuis public/ (voir scripts/copy-maplibre-worker.mjs) : dans le bundle
 // Metro, maplibre-gl ne peut pas le retrouver à côté de son propre script.
@@ -20,7 +18,8 @@ maplibregl.setWorkerUrl('/maplibre/maplibre-gl-worker.mjs');
 
 type Entry = { marker: maplibregl.Marker; el: HTMLDivElement };
 
-export function GroupMap({ members, selectedId, onSelect, bottomInset, topInset }: GroupMapProps) {
+export function GroupMap(props: GroupMapProps) {
+  const { members, selectedId, selectedMemoryId, bottomInset, topInset } = props;
   const { style, error } = usePastelStyle();
   const container = useRef<View>(null);
   const map = useRef<maplibregl.Map | null>(null);
@@ -29,17 +28,24 @@ export function GroupMap({ members, selectedId, onSelect, bottomInset, topInset 
   const [ready, setReady] = useState(false);
   const [start] = useState(() => initialView(members));
   const [zoom, setZoom] = useState(start && 'zoom' in start ? start.zoom : 2);
-  const pins = useClusters(members, zoom);
+  const { markers, routes } = useGroupMarkers(props, zoom);
 
-  const onSelectRef = useRef(onSelect);
+  // Tap sur le fond de carte : on désélectionne (lu via une ref, la carte n'est créée qu'une fois).
+  const clearRef = useRef(() => {});
   useEffect(() => {
-    onSelectRef.current = onSelect;
+    clearRef.current = () => (props.layer === 'friends' ? props.onSelect(null) : props.onSelectMemory(null));
   });
 
   // Création de la carte, une fois le style pastel chargé.
   useEffect(() => {
     const node = container.current as unknown as HTMLDivElement | null;
     if (!style || !node) return;
+
+    // maplibre-gl.css pose `.maplibregl-map { position: relative }` sur le conteneur, ce qui écrase
+    // l'absoluteFill de react-native-web (même spécificité, CSS chargé après) : hauteur 0, carte invisible.
+    // Le style inline l'emporte sur les deux.
+    node.style.position = 'absolute';
+    node.style.inset = '0';
 
     const m = new maplibregl.Map({
       container: node,
@@ -62,8 +68,12 @@ export function GroupMap({ members, selectedId, onSelect, bottomInset, topInset 
       setZoom(m.getZoom());
     }
     m.on('zoomend', () => setZoom(m.getZoom()));
-    m.on('click', () => onSelectRef.current(null));
-    m.on('load', () => setReady(true));
+    m.on('click', () => clearRef.current());
+    m.on('load', () => {
+      m.addSource('routes', { type: 'geojson', data: routesGeoJSON([]) });
+      m.addLayer({ id: 'routes-line', type: 'line', source: 'routes', paint: ROUTE_PAINT, layout: ROUTE_LAYOUT } as maplibregl.LineLayerSpecification);
+      setReady(true);
+    });
     map.current = m;
 
     const current = entries.current;
@@ -76,12 +86,12 @@ export function GroupMap({ members, selectedId, onSelect, bottomInset, topInset 
     };
   }, [style]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Synchronise les markers DOM avec les pins (membres + clusters) ; le contenu est rendu en portal.
+  // Synchronise les markers DOM avec les marqueurs calculés ; le contenu est rendu en portal.
   useLayoutEffect(() => {
     const m = map.current;
     if (!m || !ready) return;
     const current = entries.current;
-    const wanted = new Set(pins.map((p) => p.id));
+    const wanted = new Set(markers.map((p) => p.id));
     let changed = false;
 
     for (const [id, entry] of current) {
@@ -91,34 +101,55 @@ export function GroupMap({ members, selectedId, onSelect, bottomInset, topInset 
         changed = true;
       }
     }
-    for (const pin of pins) {
-      const existing = current.get(pin.id);
+    for (const item of markers) {
+      const existing = current.get(item.id);
       if (existing) {
-        existing.marker.setLngLat([pin.lng, pin.lat]);
+        existing.marker.setLngLat([item.lng, item.lat]);
         continue;
       }
       const el = document.createElement('div');
-      const marker = new maplibregl.Marker({ element: el, anchor: pin.kind === 'member' ? 'bottom' : 'center' })
-        .setLngLat([pin.lng, pin.lat])
-        .addTo(m);
-      current.set(pin.id, { el, marker });
+      const marker = new maplibregl.Marker({ element: el, anchor: item.anchor }).setLngLat([item.lng, item.lat]).addTo(m);
+      current.set(item.id, { el, marker });
       changed = true;
     }
     if (changed) setElements(Object.fromEntries([...current].map(([id, e]) => [id, e.el])));
-  }, [pins, ready]);
+  }, [markers, ready]);
 
-  // Le pin sélectionné passe au premier plan et est recentré au-dessus de la bottom sheet.
+  // Trajets des voyages.
   useEffect(() => {
-    for (const [id, e] of entries.current) e.el.style.setProperty('z-index', id === selectedId ? '10' : '');
-    const target = selectedId ? members.find((x) => x.id === selectedId) : null;
+    const source = ready ? (map.current?.getSource('routes') as maplibregl.GeoJSONSource | undefined) : undefined;
+    source?.setData(routesGeoJSON(routes));
+  }, [routes, ready]);
+
+  // Changement de calque : on recadre sur ce qu'il montre (le premier cadre vient de initialView).
+  const firstLayer = useRef(true);
+  useEffect(() => {
+    if (firstLayer.current) {
+      firstLayer.current = false;
+      return;
+    }
+    const bounds = layerBounds(props);
+    if (bounds && map.current) {
+      map.current.fitBounds(bounds, {
+        padding: { top: topInset + 40, bottom: bottomInset + 40, left: 50, right: 50 },
+        maxZoom: 7,
+        duration: 600,
+      });
+    }
+  }, [props.layer]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // La sélection passe au premier plan et est recentrée au-dessus de la bottom sheet.
+  useEffect(() => {
+    const front = selectedId ?? (selectedMemoryId ? `memory-${selectedMemoryId}` : null);
+    for (const [id, e] of entries.current) e.el.style.setProperty('z-index', id === front ? '10' : '');
+    const target = map.current ? focusTarget(props, map.current.getZoom()) : null;
     if (!target || !map.current) return;
     map.current.easeTo({
-      center: [target.lng, target.lat],
-      zoom: Math.max(map.current.getZoom(), 6),
+      ...target,
       padding: { top: topInset, bottom: bottomInset, left: 0, right: 0 },
       duration: 450,
     });
-  }, [selectedId]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [selectedId, selectedMemoryId]); // eslint-disable-line react-hooks/exhaustive-deps
 
   return (
     <View style={StyleSheet.absoluteFill}>
@@ -133,24 +164,15 @@ export function GroupMap({ members, selectedId, onSelect, bottomInset, topInset 
           <ErrorText error={error} />
         </View>
       ) : null}
-      {pins.map((pin, i) => {
-        const el = elements[pin.id];
+      {markers.map((item) => {
+        const el = elements[item.id];
         if (!el) return null;
         return createPortal(
-          pin.kind === 'member' ? (
-            <Pressable onPress={() => onSelect(pin.member.id)} accessibilityLabel={pin.member.display_name}>
-              <MemberPin member={pin.member} selected={pin.member.id === selectedId} delay={i * 70} />
-            </Pressable>
-          ) : (
-            <Pressable
-              onPress={() => map.current?.easeTo({ center: [pin.lng, pin.lat], zoom: pin.expansionZoom, duration: 500 })}
-              accessibilityLabel={t('group.clusterA11y', { count: pin.count })}
-            >
-              <ClusterPin preview={pin.preview} count={pin.count} delay={i * 70} />
-            </Pressable>
-          ),
+          <Pressable onPress={item.onPress} accessibilityLabel={item.label}>
+            {item.element}
+          </Pressable>,
           el,
-          pin.id,
+          item.id,
         );
       })}
     </View>
