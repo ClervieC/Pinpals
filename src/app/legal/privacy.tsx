@@ -33,8 +33,8 @@ function PrivacyFr() {
           choisis.
         </Item>
         <Item>
-          <B>Tes groupes et tes amis</B> : les groupes que tu crées ou rejoins, ton rôle, et les notes que tu prends sur tes
-          amis (visibles par toi seul·e).
+          <B>Tes groupes et tes amis</B> : les groupes que tu crées ou rejoins, ton rôle, les invitations envoyées et
+          reçues, et les notes que tu prends sur tes amis (visibles par toi seul·e).
         </Item>
         <Item>
           <B>Tes souvenirs et voyages</B> : textes, dates, lieux, photos et personnes identifiées.
@@ -60,7 +60,11 @@ function PrivacyFr() {
 
       <Section title="Services tiers">
         <Item>
-          <B>Hébergement</B> : les données et les photos sont stockées sur notre serveur Supabase.
+          <B>Base de données, comptes et photos</B> : hébergés par Supabase (Supabase Cloud).
+        </Item>
+        <Item>
+          <B>Version web</B> : hébergée par Vercel. Comme pour tout site web, ton adresse IP et ton navigateur sont
+          transmis à l&apos;hébergeur lorsque tu ouvres la page.
         </Item>
         <Item>
           <B>Recherche de ville</B> : le texte que tu tapes est envoyé à Photon (komoot) pour trouver la ville.
@@ -69,20 +73,25 @@ function PrivacyFr() {
           <B>Fonds de carte</B> : les tuiles sont chargées depuis MapTiler. Comme pour tout site web, ton adresse IP leur
           est transmise.
         </Item>
+        <P>
+          Supabase et Vercel sont des sociétés américaines : certaines données peuvent être traitées hors de l&apos;Union
+          européenne. Ces transferts sont encadrés par les clauses contractuelles types de la Commission européenne.
+        </P>
       </Section>
 
       <Section title="Combien de temps ?">
         <P>
-          Tes données sont gardées tant que ton compte existe. Quand ton compte est supprimé, ton profil, ta ville, ton
-          adresse, tes notes et tes photos sont effacés.
+          Tes données sont gardées tant que ton compte existe. Tu peux le supprimer à tout moment dans « Mon profil » →
+          « Supprimer mon compte » : ton profil, ta ville, ton adresse, tes notes, tes souvenirs et tes photos sont alors
+          effacés définitivement.
         </P>
       </Section>
 
       <Section title="Tes droits">
         <P>
           Tu peux accéder à tes données, les corriger, les supprimer, les exporter ou t&apos;opposer à leur traitement. La
-          plupart se modifient directement dans « Mon profil ». Pour le reste, et pour supprimer ton compte, écris à{' '}
-          {LEGAL.contact}.
+          plupart se modifient directement dans « Mon profil », où tu peux aussi supprimer ton compte. Pour le reste, écris
+          à {LEGAL.contact}.
         </P>
         <P>Si tu penses que tes droits ne sont pas respectés, tu peux saisir la CNIL (cnil.fr).</P>
       </Section>
@@ -115,8 +124,8 @@ function PrivacyEn() {
           <B>Your postal address</B> (optional): never shown on the map, visible only to the friends you choose.
         </Item>
         <Item>
-          <B>Your groups and friends</B>: the groups you create or join, your role, and the notes you keep about friends
-          (visible only to you).
+          <B>Your groups and friends</B>: the groups you create or join, your role, the invitations you send and receive,
+          and the notes you keep about friends (visible only to you).
         </Item>
         <Item>
           <B>Your memories and trips</B>: text, dates, places, photos and tagged people.
@@ -141,7 +150,11 @@ function PrivacyEn() {
 
       <Section title="Third-party services">
         <Item>
-          <B>Hosting</B>: data and photos are stored on our Supabase server.
+          <B>Database, accounts and photos</B>: hosted by Supabase (Supabase Cloud).
+        </Item>
+        <Item>
+          <B>Web version</B>: hosted by Vercel. As with any website, your IP address and browser details are sent to the
+          host when you open the page.
         </Item>
         <Item>
           <B>City search</B>: what you type is sent to Photon (komoot) to find the city.
@@ -149,19 +162,25 @@ function PrivacyEn() {
         <Item>
           <B>Map tiles</B>: loaded from MapTiler. As with any website, your IP address is sent to them.
         </Item>
+        <P>
+          Supabase and Vercel are US companies: some data may be processed outside the European Union. These transfers are
+          covered by the European Commission&apos;s standard contractual clauses.
+        </P>
       </Section>
 
       <Section title="How long?">
         <P>
-          Your data is kept as long as your account exists. When your account is deleted, your profile, city, address, notes
-          and photos are erased.
+          Your data is kept as long as your account exists. You can delete it at any time in &quot;My profile&quot; →
+          &quot;Delete my account&quot;: your profile, city, address, notes, memories and photos are then permanently
+          erased.
         </P>
       </Section>
 
       <Section title="Your rights">
         <P>
           You can access, correct, delete or export your data, or object to its processing. Most of it can be edited
-          directly in &quot;My profile&quot;. For the rest, and to delete your account, write to {LEGAL.contact}.
+          directly in &quot;My profile&quot;, where you can also delete your account. For anything else, write to{' '}
+          {LEGAL.contact}.
         </P>
         <P>If you believe your rights are not respected, you can contact your data protection authority.</P>
       </Section>

@@ -168,7 +168,6 @@ function ViewerBody({
           <View style={styles.actions}>
             <Pressable
               onPress={() => toggleLike.mutate({ photoId: photo.id, liked })}
-              disabled={toggleLike.isPending}
               accessibilityRole="button"
               accessibilityState={{ selected: liked }}
               accessibilityLabel={liked ? t('photo.unlike') : t('photo.like')}

@@ -26,6 +26,7 @@ export default function AppLayout() {
       <Stack.Screen name="group/[id]/settings" options={{ headerShown: true, title: '' }} />
       <Stack.Screen name="group/new" options={{ headerShown: true, title: t('group.new.title'), presentation: 'modal' }} />
       <Stack.Screen name="me" options={{ headerShown: true, title: '' }} />
+      <Stack.Screen name="notifications" options={{ headerShown: true, title: t('notifications.title') }} />
     </Stack>
   );
 }

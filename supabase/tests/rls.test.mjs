@@ -100,11 +100,6 @@ await expectOk('C still cannot see A address', C, `select * from addresses`, r=>
 await expectOk('B cannot edit A address (no-op)', B, `update addresses set city='hack' where user_id='${A}' returning *`, r=>r.length===0);
 await expectOk('B cannot delete the share (no-op)', B, `delete from address_shares where owner_id='${A}' returning *`, r=>r.length===0);
 
-await expectOk('A writes private note on B', A, `insert into friend_notes(author_id,friend_id,gift_ideas) values ('${A}','${B}','un livre de cuisine')`);
-await expectOk('A upserts note (PostgREST style)', A, `insert into friend_notes(author_id,friend_id,gift_ideas) values ('${A}','${B}','une plante') on conflict(author_id,friend_id) do update set author_id=excluded.author_id, friend_id=excluded.friend_id, gift_ideas=excluded.gift_ideas returning gift_ideas`, r=>r[0].gift_ideas==='une plante');
-await expectOk('B cannot read notes about him', B, `select * from friend_notes`, r=>r.length===0);
-await expectErr('A cannot note an outsider', A, `insert into friend_notes(author_id,friend_id,notes) values ('${A}','${C}','x')`);
-await expectErr('A cannot forge a note as B', A, `insert into friend_notes(author_id,friend_id,notes) values ('${B}','${A}','x')`);
 // Notes privées multiples (friend_private_notes) : visibles et modifiables uniquement par leur auteur.
 const [{id: pn1}] = await expectOk('A adds gift note on B', A, `insert into friend_private_notes(friend_id,kind,body) values ('${B}','gift','un vinyle') returning id`);
 await expectOk('A adds address note on B', A, `insert into friend_private_notes(friend_id,kind,body) values ('${B}','address','3 rue du Port, Nantes')`);
@@ -219,4 +214,113 @@ await expectErr('anon cannot read comments', null, `select * from memory_comment
 await expectErr('anon cannot read private notes', null, `select * from friend_private_notes`);
 await expectErr('anon cannot read photo likes', null, `select * from memory_photo_likes`);
 await expectErr('anon cannot read photo comments', null, `select * from memory_photo_comments`);
+
+// Miniatures : même dossier que la photo ; get_memories les renvoie pour la couverture.
+const [{create_memory: m4}] = await expectOk('A creates memory for thumbs', A, `select create_memory('Brunch','memory',null,null,null,null,'${g2}','{}')`);
+await expectOk('A registers photo with thumb', A, `insert into memory_photos(memory_id,path,thumb_path) values ('${m4}','${m4}/p.jpg','${m4}/p.thumb.jpg')`);
+await expectErr('thumb must live in the memory folder', A, `insert into memory_photos(memory_id,path,thumb_path) values ('${m4}','${m4}/q.jpg','${m1}/q.thumb.jpg')`);
+await expectErr('thumb cannot be changed afterwards', A, `update memory_photos set thumb_path='${m4}/x.jpg' where memory_id='${m4}'`);
+await expectOk('get_memories returns the thumb as cover', A, `select cover_path, photo_paths from get_memories() where id='${m4}'`, r=>r[0]?.cover_path===`${m4}/p.thumb.jpg` && r[0].photo_paths[0]===`${m4}/p.thumb.jpg`);
+await expectErr('friend_notes table is gone', A, `select * from friend_notes`);
+
+// Suppression de compte : groupes quittés proprement, puis tout part en cascade.
+await expectErr('anon cannot delete an account', null, `select delete_my_account()`);
+const [{create_group: g3}] = await expectOk('B creates group 3', B, `select create_group('G3','🎈','#B5D8FF')`);
+const code3 = (await as(B, `select invite_code from groups where id='${g3}'`)).rows[0].invite_code;
+await expectOk('A joins group 3', A, `select join_group('${code3}')`);
+const [{create_memory: m5}] = await expectOk('B posts in group 3', B, `select create_memory('Adieu','memory',null,null,null,null,'${g3}','{}')`);
+await expectOk('A comments B memory', A, `insert into memory_comments(memory_id,body) values ('${m5}','Salut')`);
+await expectOk('B deletes his account', B, `select delete_my_account()`);
+await expectOk('B profile gone', A, `select * from profiles where id='${B}'`, r=>r.length===0);
+await expectOk('B memory gone (with its comments)', A, `select * from memories where id='${m5}'`, r=>r.length===0);
+await expectOk('A promoted admin of group 3', A, `select role from group_members where group_id='${g3}' and user_id='${A}'`, r=>r[0]?.role==='admin');
+await expectOk('group 3 kept for A', A, `select * from get_my_groups() where id='${g3}'`, r=>r.length===1 && Number(r[0].member_count)===1);
+await db.exec('reset role');
+const bGone = (await db.query(`select * from auth.users where id='${B}'`)).rows.length===0;
+console.log(bGone ? '✔' : '✘', 'B auth user deleted'); if (!bGone) fails++;
+await expectOk('A account untouched', A, `select * from profiles where id='${A}'`, r=>r.length===1);
+
+// Inviter un·e ami·e existant·e : seulement quelqu'un avec qui je partage un groupe, et il faut accepter.
+const D='00000000-0000-0000-0000-00000000000d';
+await db.exec(`reset role; insert into auth.users values ('${D}')`);
+await expectOk('D creates profile', D, `insert into profiles(id, display_name) values ('${D}','Dan')`);
+const [{create_group: g5}] = await expectOk('A creates group 5', A, `select create_group('G5','🍕','#B5D8FF')`);
+const code5 = (await as(A, `select invite_code from groups where id='${g5}'`)).rows[0].invite_code;
+await expectOk('C joins group 5 (A and C are friends)', C, `select join_group('${code5}')`);
+const [{create_group: g4}] = await expectOk('A creates group 4', A, `select create_group('G4','🏖️','#B5D8FF')`);
+await expectOk('A sees C as invitable (not D)', A, `select id, invited from get_invitable_friends('${g4}')`, r=>r.length===1 && r[0].id===C && r[0].invited===false);
+await expectOk('D sees nobody to invite in group 4', D, `select * from get_invitable_friends('${g4}')`, r=>r.length===0);
+await expectErr('A cannot invite D (not a friend)', A, `select invite_to_group('${g4}','${D}')`);
+await expectErr('A cannot invite herself', A, `select invite_to_group('${g4}','${A}')`);
+await expectErr('D cannot invite into a group he is not in', D, `select invite_to_group('${g4}','${A}')`);
+await expectErr('C cannot write invitations directly', C, `insert into group_invitations(group_id,invitee_id,inviter_id) values ('${g4}','${C}','${A}')`);
+await expectOk('A invites C', A, `select invite_to_group('${g4}','${C}')`);
+await expectOk('A invites C twice (idempotent)', A, `select invite_to_group('${g4}','${C}')`);
+await expectOk('C now shows as invited', A, `select invited from get_invitable_friends('${g4}')`, r=>r[0]?.invited===true);
+await expectOk('C is not a member yet', C, `select * from get_my_groups() where id='${g4}'`, r=>r.length===0);
+await expectOk('C cannot see group 4 itself', C, `select * from groups where id='${g4}'`, r=>r.length===0);
+await expectOk('C sees the invitation', C, `select * from get_my_invitations()`, r=>r.length===1 && r[0].group_id===g4 && r[0].inviter_name==='Alice2' && Number(r[0].member_count)===1);
+await expectOk('D sees no invitation', D, `select * from group_invitations`, r=>r.length===0);
+await expectOk('A cancels the invitation', A, `select cancel_group_invitation('${g4}','${C}')`);
+await expectOk('invitation gone after cancel', C, `select * from get_my_invitations()`, r=>r.length===0);
+await expectErr('C cannot answer a cancelled invitation', C, `select respond_to_invitation('${g4}', true)`);
+await expectOk('A invites C again', A, `select invite_to_group('${g4}','${C}')`);
+await expectOk('C declines', C, `select respond_to_invitation('${g4}', false)`);
+await expectOk('declined: C not a member, invitation gone', C, `select (select count(*) from get_my_groups() where id='${g4}') + (select count(*) from get_my_invitations()) as n`, r=>Number(r[0].n)===0);
+await expectOk('A invites C a third time', A, `select invite_to_group('${g4}','${C}')`);
+await expectOk('C accepts', C, `select respond_to_invitation('${g4}', true)`);
+await expectOk('C is now a member', C, `select role from group_members where group_id='${g4}' and user_id='${C}'`, r=>r[0]?.role==='member');
+await expectOk('invitation consumed', C, `select * from get_my_invitations()`, r=>r.length===0);
+await expectErr('cannot invite someone already in the group', A, `select invite_to_group('${g4}','${C}')`);
+await expectOk('nobody left to invite', A, `select * from get_invitable_friends('${g4}')`, r=>r.length===0);
+const [{create_group: g6}] = await expectOk('A creates group 6', A, `select create_group('G6','🎸','#B5D8FF')`);
+const code6 = (await as(A, `select invite_code from groups where id='${g6}'`)).rows[0].invite_code;
+await expectOk('A invites C to group 6', A, `select invite_to_group('${g6}','${C}')`);
+await expectOk('C joins group 6 by link instead', C, `select join_group('${code6}')`);
+await expectOk('joining by link clears the invitation', C, `select * from get_my_invitations()`, r=>r.length===0);
+await expectErr('anon cannot list invitations', null, `select * from get_my_invitations()`);
+await expectErr('anon cannot read invitations', null, `select * from group_invitations`);
+
+// Notifications dans l'app : écrites par des triggers, chacun ne lit que les siennes.
+const notifs = (uid) => as(uid, `select kind, actor_id, memory_id, photo_id, group_id, data, read_at from get_my_notifications()`).then(r=>r.rows);
+await as(A, `select mark_notifications_read()`); await as(C, `select mark_notifications_read()`);
+await db.exec(`reset role; delete from notifications`);
+const [{create_memory: n1}] = await expectOk('A posts a memory in group 4', A, `select create_memory('Pique-nique','memory',null,null,null,null,'${g4}','{}')`);
+await expectOk('C notified of the new group memory', C, `select kind, actor_id from get_my_notifications()`, r=>r.length===1 && r[0].kind==='group_memory' && r[0].actor_id===A);
+await expectOk('A not notified of her own memory', A, `select * from get_my_notifications()`, r=>r.length===0);
+await expectOk('C comments A memory', C, `insert into memory_comments(memory_id,body) values ('${n1}','Trop bien')`);
+await expectOk('A notified of the comment', A, `select kind, memory_title from get_my_notifications()`, r=>r.length===1 && r[0].kind==='memory_comment' && r[0].memory_title==='Pique-nique');
+await expectOk('A comments her own memory: no notification', A, `insert into memory_comments(memory_id,body) values ('${n1}','Merci')`);
+await expectOk('still one notification for A', A, `select * from get_my_notifications()`, r=>r.length===1);
+const [{id: np}] = await expectOk('A adds a photo', A, `insert into memory_photos(memory_id,path) values ('${n1}','${n1}/a.jpg') returning id`);
+await expectOk('C likes the photo', C, `insert into memory_photo_likes(photo_id) values ('${np}')`);
+await expectOk('A notified of the like', A, `select * from get_my_notifications() where kind='photo_like'`, r=>r.length===1 && r[0].photo_id===np);
+await expectOk('C unlikes', C, `delete from memory_photo_likes where photo_id='${np}'`);
+await expectOk('like notification removed', A, `select * from get_my_notifications() where kind='photo_like'`, r=>r.length===0);
+await expectOk('C comments the photo', C, `insert into memory_photo_comments(photo_id,body) values ('${np}','Belle photo')`);
+await expectOk('A notified once of the photo comment', A, `select * from get_my_notifications() where kind='photo_comment'`, r=>r.length===1);
+const [{create_memory: n2}] = await expectOk('A tags C in a group memory', A, `select create_memory('Concert','memory',null,null,null,null,'${g4}',array['${C}']::uuid[])`);
+await expectOk('C gets "tagged", not also "group_memory"', C, `select kind from get_my_notifications() where memory_id='${n2}'`, r=>r.length===1 && r[0].kind==='tagged');
+await expectOk('A rewrites the people list', A, `select set_memory_people('${n2}', array['${C}']::uuid[])`);
+await expectOk('C still tagged only once', C, `select * from get_my_notifications() where memory_id='${n2}'`, r=>r.length===1);
+await expectOk('D joins group 5', D, `select join_group('${code5}')`);
+await expectOk('A and C notified that D joined', A, `select (select count(*) from get_my_notifications() where kind='member_joined') as a`, r=>Number(r[0].a)===1);
+await expectOk('C notified that D joined', C, `select group_id from get_my_notifications() where kind='member_joined'`, r=>r.length===1 && r[0].group_id===g5);
+await expectOk('D sets his first city: nobody notified', D, `select set_my_location('Paris','France','fr',48.85,2.35)`);
+await expectOk('no move notification for a first city', A, `select * from get_my_notifications() where kind='moved'`, r=>r.length===0);
+await expectOk('D moves to Lyon', D, `select set_my_location('Lyon','France','fr',45.76,4.83)`);
+await expectOk('A notified of the move, with the new city', A, `select data from get_my_notifications() where kind='moved'`, r=>r.length===1 && r[0].data.city==='Lyon');
+await expectOk('D sees no notification about others', D, `select * from notifications`, r=>r.every(n=>n.user_id===D));
+await expectErr('nobody can write a notification directly', C, `insert into notifications(user_id,actor_id,kind) values ('${A}','${C}','moved')`);
+await expectErr('notify() is internal', C, `select notify('${A}','${C}','moved')`);
+await expectErr('cannot mark notifications read by hand', C, `update notifications set read_at=now()`);
+await expectOk('C has unread notifications', C, `select count_unread_notifications() as n`, r=>Number(r[0].n)>=3);
+await expectOk('C marks all read', C, `select mark_notifications_read()`);
+await expectOk('C has no unread left', C, `select count_unread_notifications() as n`, r=>Number(r[0].n)===0);
+await expectOk('A still has unread (separate)', A, `select count_unread_notifications() as n`, r=>Number(r[0].n)>0);
+await expectOk('C leaves group 4', C, `select leave_group('${g4}')`);
+await expectOk('group 4 notifications hidden once C left, except the memory she is tagged in', C, `select kind, memory_id from get_my_notifications() where group_id='${g4}'`, r=>r.length===1 && r[0].kind==='tagged' && r[0].memory_id===n2);
+await expectOk('C deletes a notification', C, `delete from notifications where user_id='${C}' returning *`, r=>r.length>0);
+await expectErr('anon cannot list notifications', null, `select * from get_my_notifications()`);
+await expectErr('anon cannot read notifications', null, `select * from notifications`);
 console.log(fails ? `\n${fails} FAILED` : '\nALL PASSED');

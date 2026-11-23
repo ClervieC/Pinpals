@@ -3,22 +3,30 @@ import { t } from '@/lib/i18n';
 import { useAddMemoryComment, useDeleteMemoryComment, useMemoryComments } from '@/lib/queries';
 
 import { CommentComposer, CommentList } from './CommentThread';
-import { ErrorText, SectionCard } from './ui';
+import { Button, ErrorText, SectionCard } from './ui';
 
-/** Fil de commentaires d'un souvenir : toute l'audience peut commenter. */
+/** Fil de commentaires d'un souvenir : toute l'audience peut commenter. Les plus récents d'abord chargés. */
 export function MemoryComments({ memoryId, memoryAuthorId }: { memoryId: string; memoryAuthorId: string }) {
   const uid = useUserId();
   const comments = useMemoryComments(memoryId);
   const add = useAddMemoryComment(memoryId);
   const remove = useDeleteMemoryComment(memoryId);
-  const list = comments.data ?? [];
 
   return (
-    <SectionCard icon="message-circle" title={t('comments.title', { count: list.length })}>
+    <SectionCard icon="message-circle" title={t('comments.title', { count: comments.total })}>
       <ErrorText error={comments.error ?? remove.error} />
+      {comments.hasNextPage ? (
+        <Button
+          label={t('comments.older')}
+          kind="ghost"
+          icon="chevron-up"
+          loading={comments.isFetchingNextPage}
+          onPress={() => comments.fetchNextPage()}
+        />
+      ) : null}
       {comments.isPending ? null : (
         <CommentList
-          comments={list}
+          comments={comments.items}
           // L'auteur du souvenir peut modérer sa page.
           canModerate={memoryAuthorId === uid}
           deletingId={remove.isPending ? (remove.variables ?? null) : null}

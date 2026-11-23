@@ -32,7 +32,8 @@ export function GroupMap(props: GroupMapProps) {
     // On ne recentre que lorsque la sélection change, pas à chaque zoom.
   }, [selectedId, selectedMemoryId]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Changement de calque : on recadre sur ce qu'il montre (le premier cadre vient d'initialViewState).
+  // Changement de calque, ou fiche fermée : on recadre sur ce que montre le calque
+  // (le premier cadre vient d'initialViewState).
   const firstLayer = useRef(true);
   useEffect(() => {
     if (firstLayer.current) {
@@ -40,8 +41,8 @@ export function GroupMap(props: GroupMapProps) {
       return;
     }
     const bounds = layerBounds(props);
-    if (bounds) camera.current?.fitBounds(bounds, { padding, duration: 600 });
-  }, [layer]); // eslint-disable-line react-hooks/exhaustive-deps
+    if (bounds) camera.current?.fitBounds(bounds, { padding, duration: 700 });
+  }, [layer, props.overviewKey]); // eslint-disable-line react-hooks/exhaustive-deps
 
   if (error) {
     return (

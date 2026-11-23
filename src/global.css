@@ -4,3 +4,29 @@ input::-ms-reveal,
 input::-ms-clear {
   display: none;
 }
+
+/* Téléphone : la hauteur « 100 % » du navigateur compte aussi ses barres d'outils (adresse,
+   navigation), qui recouvrent alors le bas de l'app : la barre d'onglets était coupée.
+   100dvh = la hauteur réellement visible, qui suit l'apparition et la disparition de ces barres. */
+html,
+body,
+#root {
+  height: 100%;
+}
+@supports (height: 100dvh) {
+  html,
+  body,
+  #root {
+    height: 100dvh;
+  }
+}
+
+/* iPhone : Safari zoome sur un champ dont le texte fait moins de 16px, et la page reste zoomée.
+   Les champs passent à 16px sur iOS seulement (-webkit-touch-callout n'existe que là). */
+@supports (-webkit-touch-callout: none) {
+  input,
+  textarea,
+  select {
+    font-size: 16px !important;
+  }
+}

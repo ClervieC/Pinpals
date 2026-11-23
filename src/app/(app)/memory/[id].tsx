@@ -22,6 +22,7 @@ import {
   useMyGroups,
   useMyProfile,
   usePhotoSocial,
+  photoFiles,
   useSignedUrls,
 } from '@/lib/queries';
 import { colors, fonts, radius, shade, themed, tint } from '@/lib/theme';
@@ -37,9 +38,12 @@ export default function MemoryScreen() {
   const addPhotos = useAddMemoryPhotos(id);
   const deletePhoto = useDeleteMemoryPhoto(id);
   const deleteMemory = useDeleteMemory(id);
-  const urls = useSignedUrls(memory.data?.photos.map((p) => p.path) ?? []);
+  const photos = memory.data?.photos ?? [];
+  // Miniatures pour le mur ; originaux seulement pour la couverture et la visionneuse (chargés à l'ouverture).
+  const thumbs = useSignedUrls(photos.map((p) => p.thumb_path ?? p.path));
   // Photo ouverte en grand (index dans m.photos) ; null = visionneuse fermée.
   const [viewerIndex, setViewerIndex] = useState<number | null>(null);
+  const originals = useSignedUrls(viewerIndex === null ? photos.slice(0, 1).map((p) => p.path) : photos.map((p) => p.path));
   const social = usePhotoSocial(id, memory.data?.photos.map((p) => p.id) ?? []);
   // Mur de polaroïds sur 3 colonnes : largeur de l'écran (max 760) moins les marges de l'écran et de la carte.
   const { width: screenWidth } = useWindowDimensions();
@@ -65,7 +69,7 @@ export default function MemoryScreen() {
   });
   const when = formatDateRange(m.happened_on, m.ends_on);
   const color = colorFor(m.id);
-  const coverUrl = m.photos[0] ? urls.data?.[m.photos[0].path] : undefined;
+  const coverUrl = m.photos[0] ? (originals.data?.[m.photos[0].path] ?? thumbs.data?.[m.photos[0].thumb_path ?? m.photos[0].path]) : undefined;
 
   async function add() {
     const images = await pickPhotos();
@@ -134,7 +138,7 @@ export default function MemoryScreen() {
               style={styles.cell}
             >
               <Polaroid
-                uri={urls.data?.[photo.path]}
+                uri={thumbs.data?.[photo.thumb_path ?? photo.path]}
                 color={color}
                 width={polaroidWidth}
                 rotate={TILTS[i % TILTS.length]}
@@ -158,7 +162,7 @@ export default function MemoryScreen() {
         </View>
         <T variant="caption">{t('memory.photosHint')}</T>
         <ErrorText
-          error={addPhotos.error ?? urls.error ?? social.error ?? (photoError && !addPhotos.isSuccess ? t('memory.photoUploadFailed') : null)}
+          error={addPhotos.error ?? thumbs.error ?? originals.error ?? social.error ?? (photoError && !addPhotos.isSuccess ? t('memory.photoUploadFailed') : null)}
         />
       </SectionCard>
 
@@ -166,7 +170,7 @@ export default function MemoryScreen() {
         memoryId={m.id}
         memoryAuthorId={m.author_id}
         photos={m.photos}
-        urls={urls.data}
+        urls={originals.data}
         likes={social.data?.likes ?? []}
         comments={social.data?.comments ?? []}
         people={everyone}
@@ -193,7 +197,7 @@ export default function MemoryScreen() {
             loading={deleteMemory.isPending}
             onConfirm={() =>
               deleteMemory.mutate(
-                m.photos.map((p) => p.path),
+                m.photos.flatMap(photoFiles),
                 { onSuccess: () => (router.canGoBack() ? router.back() : router.replace('/memories')) },
               )
             }

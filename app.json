@@ -10,7 +10,7 @@
       "supportsTablet": true,
       "bundleIdentifier": "app.pinpals",
       "associatedDomains": [
-        "applinks:pinpals.app"
+        "applinks:pinpals-clervie.vercel.app"
       ],
       "infoPlist": {
         "NSPhotoLibraryUsageDescription": "Pinpals utilise ta galerie pour choisir ton avatar."
@@ -32,7 +32,7 @@
           "data": [
             {
               "scheme": "https",
-              "host": "pinpals.app",
+              "host": "pinpals-clervie.vercel.app",
               "pathPrefix": "/join"
             }
           ],

@@ -23,6 +23,8 @@ export type GroupMapProps = {
   memories: MapMemory[];
   selectedMemoryId: string | null;
   onSelectMemory: (id: string | null) => void;
+  /** Change quand une fiche se ferme : la carte revient sur la vue d'ensemble du calque. */
+  overviewKey: number;
   /** Hauteur occupée en bas de l'écran (bottom sheet), pour centrer le pin sélectionné au-dessus. */
   bottomInset: number;
   topInset: number;

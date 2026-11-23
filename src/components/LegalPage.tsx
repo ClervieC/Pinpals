@@ -6,10 +6,10 @@ import { colors, fonts, themed } from '@/lib/theme';
 
 import { Card, Screen, T } from './ui';
 
-// À compléter avant publication : identité de l'éditeur et adresse de contact.
+/** Éditrice de l'app et contact pour les questions de données personnelles. */
 export const LEGAL = {
-  editor: '[Nom de l’éditeur]',
-  contact: '[contact@exemple.fr]',
+  editor: 'Clervie Causer',
+  contact: 'clervie@bluedays.com',
 };
 
 export function LegalPage({ intro, children }: { intro: string; children: ReactNode }) {

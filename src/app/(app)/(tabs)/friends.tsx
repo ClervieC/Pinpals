@@ -2,27 +2,18 @@ import { Avatar } from '@/components/Avatar';
 import { Chip, ColorCard, Grid } from '@/components/Tiles';
 import { EmptyState, ErrorText, PageHeader, Screen, SectionTitle } from '@/components/ui';
 import { countryFlag } from '@/lib/geo';
-import { daysUntilBirthday, formatDayMonth, t } from '@/lib/i18n';
+import { birthdayIn, countdown, upcomingBirthdays } from '@/lib/birthdays';
+import { formatDayMonth, t } from '@/lib/i18n';
 import { useFriends } from '@/lib/queries';
 import { pastels } from '@/lib/theme';
 import type { Friend } from '@/lib/types';
 
 const SOON_DAYS = 30;
 
-function birthdayIn(f: Friend): number | null {
-  return f.birthday_day && f.birthday_month ? daysUntilBirthday(f.birthday_day, f.birthday_month) : null;
-}
-
-function countdown(days: number): string {
-  return days === 0 ? t('friends.today') : days === 1 ? t('friends.tomorrow') : t('friends.inDays', { count: days });
-}
-
 export default function Friends() {
   const friends = useFriends();
   const list = friends.data ?? [];
-  const soon = list
-    .filter((f) => (birthdayIn(f) ?? Infinity) <= SOON_DAYS)
-    .sort((a, b) => birthdayIn(a)! - birthdayIn(b)!);
+  const soon = upcomingBirthdays(list, SOON_DAYS);
 
   return (
     <Screen scroll edges={['top']} refreshing={friends.isRefetching} onRefresh={friends.refetch}>

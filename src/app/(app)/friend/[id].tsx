@@ -6,17 +6,17 @@ import { FriendCard } from '@/components/FriendCard';
 import { MemoryGrid } from '@/components/Memories';
 import { PrivateNotes } from '@/components/PrivateNotes';
 import { Chip, Hero } from '@/components/Tiles';
-import { ErrorText, Loading, Screen, SectionCard, SectionTitle, T } from '@/components/ui';
+import { Button, ErrorText, Loading, Screen, SectionCard, SectionTitle, T } from '@/components/ui';
 import { countryFlag } from '@/lib/geo';
 import { t } from '@/lib/i18n';
-import { useFriendAddress, useMemories, useProfile } from '@/lib/queries';
+import { useFriendAddress, useMemoriesPaged, useProfile } from '@/lib/queries';
 import { colors, themed } from '@/lib/theme';
 
 export default function FriendScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const profile = useProfile(id);
   const address = useFriendAddress(id);
-  const memories = useMemories({ friendId: id });
+  const memories = useMemoriesPaged({ friendId: id });
 
   if (profile.isPending) return <Loading />;
   const friend = profile.data;
@@ -74,11 +74,20 @@ export default function FriendScreen() {
       <SectionTitle>{t('friend.memories')}</SectionTitle>
       {memories.isPending ? null : (
         <MemoryGrid
-          memories={memories.data ?? []}
+          memories={memories.items}
           error={memories.error}
           onAdd={() => router.push({ pathname: '/memory/new', params: { friendId: id } })}
         />
       )}
+      {memories.hasNextPage ? (
+        <Button
+          label={t('memories.more')}
+          kind="secondary"
+          icon="chevron-down"
+          loading={memories.isFetchingNextPage}
+          onPress={() => memories.fetchNextPage()}
+        />
+      ) : null}
     </Screen>
   );
 }

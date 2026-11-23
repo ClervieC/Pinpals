@@ -26,7 +26,8 @@ function TermsFr() {
       <Section title="Les groupes et invitations">
         <P>
           Un lien d&apos;invitation donne accès au groupe à toute personne qui le reçoit. Partage-le seulement avec les
-          personnes concernées. Les admins d&apos;un groupe peuvent retirer des membres.
+          personnes concernées. Tu peux aussi inviter des amis que tu as déjà sur Pinpals : ils choisissent de rejoindre
+          ou non. Les admins d&apos;un groupe peuvent retirer des membres.
         </P>
       </Section>
 
@@ -49,7 +50,7 @@ function TermsFr() {
 
       <Section title="Fin et changements">
         <P>
-          Tu peux arrêter d&apos;utiliser Pinpals et demander la suppression de ton compte à tout moment. Si ces conditions
+          Tu peux arrêter d&apos;utiliser Pinpals et supprimer ton compte à tout moment, depuis « Mon profil ». Si ces conditions
           changent, on te prévient dans l&apos;app. Elles sont soumises au <B>droit français</B>.
         </P>
       </Section>
@@ -76,8 +77,8 @@ function TermsEn() {
 
       <Section title="Groups and invitations">
         <P>
-          An invite link gives access to the group to anyone who receives it. Only share it with the people concerned. Group
-          admins can remove members.
+          An invite link gives access to the group to anyone who receives it. Only share it with the people concerned. You
+          can also invite friends you already have on Pinpals: they choose whether to join. Group admins can remove members.
         </P>
       </Section>
 
@@ -98,7 +99,7 @@ function TermsEn() {
 
       <Section title="Ending and changes">
         <P>
-          You can stop using Pinpals and ask for your account to be deleted at any time. If these terms change, we&apos;ll let
+          You can stop using Pinpals and delete your account at any time, from &quot;My profile&quot;. If these terms change, we&apos;ll let
           you know in the app. They are governed by <B>French law</B>.
         </P>
       </Section>

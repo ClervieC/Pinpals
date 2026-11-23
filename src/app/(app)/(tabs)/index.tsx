@@ -1,19 +1,24 @@
+import { useQueryClient } from '@tanstack/react-query';
 import { Link, router } from 'expo-router';
 import { useEffect, useState } from 'react';
 import { Pressable, View } from 'react-native';
 
 import { Avatar } from '@/components/Avatar';
+import { InvitationsCard } from '@/components/GroupInvitations';
+import { BellButton, RemindersCard } from '@/components/Notifications';
 import { AddTile, Chip, ColorCard, Grid } from '@/components/Tiles';
 import { Button, EmptyState, ErrorText, Field, PageHeader, Screen, SectionCard, T } from '@/components/ui';
 import { countryFlag } from '@/lib/geo';
 import { t, tn } from '@/lib/i18n';
 import { pendingInvite } from '@/lib/invite';
-import { useMyGroups, useMyProfile } from '@/lib/queries';
+import { keys, useMyGroups, useMyInvitations, useMyProfile } from '@/lib/queries';
 import { fonts, pastels } from '@/lib/theme';
 
 export default function Home() {
   const { data: profile } = useMyProfile();
   const groups = useMyGroups();
+  const invitations = useMyInvitations();
+  const qc = useQueryClient();
 
   // Invitation ouverte avant d'avoir un compte : on y retourne une fois l'onboarding terminé.
   useEffect(() => {
@@ -27,18 +32,31 @@ export default function Home() {
   const list = groups.data ?? [];
 
   return (
-    <Screen scroll edges={['top']} refreshing={groups.isRefetching} onRefresh={groups.refetch}>
+    <Screen
+      scroll
+      edges={['top']}
+      refreshing={groups.isRefetching}
+      onRefresh={() => {
+        groups.refetch();
+        invitations.refetch();
+        qc.invalidateQueries({ queryKey: keys.notifications });
+        qc.invalidateQueries({ queryKey: keys.friends });
+      }}
+    >
       <PageHeader
         eyebrow={profile ? t('home.greeting', { name: profile.display_name }) : null}
         title={t('home.title')}
         right={
-          <Link href="/me" asChild>
-            <Pressable accessibilityLabel={t('me.title')}>
-              {profile ? (
-                <Avatar name={profile.display_name} url={profile.avatar_url} color={profile.pin_color} size={48} ring={3} />
-              ) : null}
-            </Pressable>
-          </Link>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+            <BellButton />
+            <Link href="/me" asChild>
+              <Pressable accessibilityLabel={t('me.title')}>
+                {profile ? (
+                  <Avatar name={profile.display_name} url={profile.avatar_url} color={profile.pin_color} size={48} ring={3} />
+                ) : null}
+              </Pressable>
+            </Link>
+          </View>
         }
       />
       {profile?.city ? (
@@ -46,6 +64,8 @@ export default function Home() {
       ) : null}
 
       <ErrorText error={groups.error} />
+      <InvitationsCard />
+      <RemindersCard />
 
       {groups.isPending ? null : list.length === 0 ? (
         <EmptyState icon="map" color={pastels[4]} title={t('home.empty.title')} body={t('home.empty.body')}>

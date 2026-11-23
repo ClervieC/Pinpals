@@ -5,17 +5,17 @@ import { EmptyMemories } from '@/components/Memories';
 import { MemoryTimeline } from '@/components/MemoryTimeline';
 import { Button, ErrorText, Screen, T } from '@/components/ui';
 import { t } from '@/lib/i18n';
-import { useGroup, useMemories } from '@/lib/queries';
+import { useGroup, useMemoriesPaged } from '@/lib/queries';
 import { themed, tint } from '@/lib/theme';
 
 /** Le scrapbook d'un groupe. */
 export default function GroupMemories() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const group = useGroup(id);
-  const memories = useMemories({ groupId: id });
+  const memories = useMemoriesPaged({ groupId: id });
   const add = () => router.push({ pathname: '/memory/new', params: { groupId: id } });
   const g = group.data;
-  const hasMemories = !!memories.data?.length;
+  const hasMemories = memories.items.length > 0;
 
   return (
     <Screen scroll edges={['bottom']} accent={g?.color}>
@@ -40,7 +40,18 @@ export default function GroupMemories() {
 
       <ErrorText error={memories.error} />
       {memories.isPending ? null : hasMemories ? (
-        <MemoryTimeline memories={memories.data!} />
+        <>
+          <MemoryTimeline memories={memories.items} />
+          {memories.hasNextPage ? (
+            <Button
+              label={t('memories.more')}
+              kind="secondary"
+              icon="chevron-down"
+              loading={memories.isFetchingNextPage}
+              onPress={() => memories.fetchNextPage()}
+            />
+          ) : null}
+        </>
       ) : (
         <>
           <EmptyMemories hint={t('memories.empty.group')} />

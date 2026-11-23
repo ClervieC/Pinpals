@@ -3,6 +3,7 @@ import { useState } from 'react';
 import { View } from 'react-native';
 
 import { AddressSection } from '@/components/AddressSection';
+import { ConfirmButton } from '@/components/GroupForm';
 import { Avatar } from '@/components/Avatar';
 import { CitySearch } from '@/components/CitySearch';
 import { ProfileForm } from '@/components/ProfileForm';
@@ -11,7 +12,7 @@ import { Button, ErrorText, Loading, Screen, SectionCard, Segmented, T } from '@
 import { countryFlag, monthYear } from '@/lib/geo';
 import { type Lang, t } from '@/lib/i18n';
 import { type SchemePref, updatePrefs, usePrefs } from '@/lib/prefs';
-import { useMyProfile, useSetLocation } from '@/lib/queries';
+import { useDeleteAccount, useMyProfile, useSetLocation } from '@/lib/queries';
 import { supabase } from '@/lib/supabase';
 
 export default function Me() {
@@ -62,6 +63,8 @@ export default function Me() {
       <PreferencesCard />
 
       <Button label={t('me.signOut')} kind="ghost" icon="log-out" onPress={() => supabase.auth.signOut()} />
+
+      <DeleteAccountCard />
 
       <View style={{ flexDirection: 'row', justifyContent: 'center', gap: 8, paddingBottom: 8 }}>
         <Link href="/legal/terms">
@@ -115,6 +118,23 @@ function PreferencesCard() {
           ]}
         />
       </View>
+    </SectionCard>
+  );
+}
+
+/** Suppression définitive du compte (exigée par l'App Store et le Play Store), confirmée en deux temps. */
+function DeleteAccountCard() {
+  const remove = useDeleteAccount();
+  return (
+    <SectionCard icon="alert-triangle" title={t('account.delete.title')}>
+      <T variant="caption">{t('account.delete.body')}</T>
+      <ErrorText error={remove.error} />
+      <ConfirmButton
+        label={t('account.delete.button')}
+        confirmLabel={t('account.delete.confirm')}
+        loading={remove.isPending}
+        onConfirm={() => remove.mutate()}
+      />
     </SectionCard>
   );
 }

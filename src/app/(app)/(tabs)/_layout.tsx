@@ -1,5 +1,6 @@
 import { Tabs } from 'expo-router';
-import type { ColorValue } from 'react-native';
+import { type ColorValue, Platform } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { Icon, type IconName } from '@/components/ui';
 import { t } from '@/lib/i18n';
@@ -12,6 +13,10 @@ function icon(name: IconName) {
 }
 
 export default function TabsLayout() {
+  // Hauteur explicite : icône + libellé tiennent en entier, au-dessus de la barre système
+  // (indicateur d'accueil iPhone, navigation gestuelle Android).
+  const insets = useSafeAreaInsets();
+  const bottom = Math.max(insets.bottom, Platform.OS === 'web' ? 8 : 12);
   return (
     <Tabs
       screenOptions={{
@@ -19,8 +24,13 @@ export default function TabsLayout() {
         sceneStyle: { backgroundColor: colors.cream },
         tabBarActiveTintColor: colors.accent,
         tabBarInactiveTintColor: colors.inkSoft,
-        tabBarLabelStyle: { fontFamily: fonts.medium, fontSize: 11 },
-        tabBarStyle: { backgroundColor: colors.paper, borderTopColor: colors.line },
+        tabBarLabelStyle: { fontFamily: fonts.medium, fontSize: 11, lineHeight: 15, marginTop: 2 },
+        tabBarItemStyle: { paddingVertical: 4 },
+        tabBarStyle: {
+          backgroundColor: colors.paper,
+          borderTopColor: colors.line,
+          height: 64 + bottom,
+        },
       }}
     >
       <Tabs.Screen name="index" options={{ title: t('tabs.groups'), tabBarIcon: icon('map') }} />

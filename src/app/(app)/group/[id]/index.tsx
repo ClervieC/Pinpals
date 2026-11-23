@@ -13,7 +13,7 @@ import { MemberSheet, SHEET_HEIGHT } from '@/components/MemberSheet';
 import { MemoryPreview } from '@/components/MemoryPreview';
 import { Button, ErrorText, Icon, Loading, T } from '@/components/ui';
 import { t, tn } from '@/lib/i18n';
-import { useGroup, useGroupMap, useMemories, useSignedUrls } from '@/lib/queries';
+import { useGroup, useGroupMap, useInvitableFriends, useMemories, useSignedUrls } from '@/lib/queries';
 import type { MapMember } from '@/lib/types';
 import { colors, fonts, radius, themed, tint } from '@/lib/theme';
 
@@ -26,18 +26,32 @@ export default function GroupMapScreen() {
   const group = useGroup(id);
   const map = useGroupMap(id);
   const memories = useMemories({ groupId: id });
+  const invitable = useInvitableFriends(id);
   const [layer, setLayer] = useState<MapLayer>('friends');
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [cluster, setCluster] = useState<MapMember[] | null>(null);
   const [selectedMemoryId, setSelectedMemoryId] = useState<string | null>(null);
+  // Incrémenté quand on ferme une fiche : la carte dézoome sur la vue d'ensemble.
+  const [overviewKey, setOverviewKey] = useState(0);
+
+  function selectMember(memberId: string | null) {
+    if (!memberId && selectedId) setOverviewKey((k) => k + 1);
+    setSelectedId(memberId);
+  }
+  function selectMemory(memoryId: string | null) {
+    if (!memoryId && selectedMemoryId) setOverviewKey((k) => k + 1);
+    setSelectedMemoryId(memoryId);
+  }
 
   const memoryList = memories.data ?? [];
-  const selectedMemory = memoryList.find((m) => m.id === selectedMemoryId) ?? null;
-  // Couvertures de toutes les vignettes + bande de photos du souvenir ouvert.
+  // Seuls les souvenirs placés sur la carte défilent dans la fiche.
+  const locatedList = memoryList.filter((m) => m.stops.length > 0);
+  const selectedIndex = locatedList.findIndex((m) => m.id === selectedMemoryId);
+  // Couvertures de toutes les vignettes + bandes de photos du souvenir ouvert et de ses voisins (swipe).
   const photoPaths = [
     ...new Set([
-      ...memoryList.flatMap((m) => (m.cover_path && m.stops.length ? [m.cover_path] : [])),
-      ...(selectedMemory?.photo_paths ?? []),
+      ...locatedList.flatMap((m) => (m.cover_path ? [m.cover_path] : [])),
+      ...(selectedIndex >= 0 ? locatedList.slice(Math.max(selectedIndex - 1, 0), selectedIndex + 2).flatMap((m) => m.photo_paths) : []),
     ]),
   ];
   const urls = useSignedUrls(layer === 'memories' ? photoPaths : []);
@@ -80,7 +94,7 @@ export default function GroupMapScreen() {
         selectedId={selectedId}
         onSelect={(memberId) => {
           setCluster(null);
-          setSelectedId(memberId);
+          selectMember(memberId);
         }}
         onCluster={(list) => {
           setSelectedId(null);
@@ -88,7 +102,8 @@ export default function GroupMapScreen() {
         }}
         memories={mapMemories}
         selectedMemoryId={selectedMemoryId}
-        onSelectMemory={setSelectedMemoryId}
+        onSelectMemory={selectMemory}
+        overviewKey={overviewKey}
         topInset={insets.top + 16 + TOOLBAR_HEIGHT}
         bottomInset={selectedId || selectedMemoryId ? SHEET_HEIGHT : 0}
       />
@@ -160,6 +175,14 @@ export default function GroupMapScreen() {
           <T variant="heading">{t('group.alone.title')}</T>
           <T style={{ color: colors.inkSoft }}>{t('group.alone.body')}</T>
           <InviteButton group={g} label={t('group.alone.cta')} />
+          {invitable.data?.length ? (
+            <Button
+              label={t('invite.friends.cta')}
+              kind="secondary"
+              icon="user-plus"
+              onPress={() => router.push({ pathname: '/group/[id]/settings', params: { id } })}
+            />
+          ) : null}
         </Animated.View>
       ) : null}
 
@@ -175,7 +198,7 @@ export default function GroupMapScreen() {
         </Animated.View>
       ) : null}
 
-      {layer === 'friends' ? <MemberSheet members={members} selectedId={selectedId} onSelect={setSelectedId} /> : null}
+      {layer === 'friends' ? <MemberSheet members={members} selectedId={selectedId} onSelect={selectMember} /> : null}
       {layer === 'friends' && cluster ? (
         <CitySheet
           members={cluster}
@@ -187,12 +210,14 @@ export default function GroupMapScreen() {
           }}
         />
       ) : null}
-      {layer === 'memories' && selectedMemory ? (
+      {layer === 'memories' && selectedMemoryId && selectedIndex >= 0 ? (
         <MemoryPreview
-          memory={selectedMemory}
+          memories={locatedList}
+          selectedId={selectedMemoryId}
+          onSelect={selectMemory}
           photoUrls={urls.data}
           bottomInset={insets.bottom}
-          onClose={() => setSelectedMemoryId(null)}
+          onClose={() => selectMemory(null)}
         />
       ) : null}
     </View>

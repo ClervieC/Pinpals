@@ -67,11 +67,14 @@ export function ColorCard({ href, color, badge, title, subtitle, tag }: ColorCar
     </>
   );
 
-  if (!href) return <View style={styles.card}>{content}</View>;
+  // Deux couches : l'ombre dehors, l'arrondi qui coupe le bandeau dedans (sur iOS, overflow hidden coupe l'ombre).
+  if (!href) return <View style={styles.card}><View style={styles.clip}>{content}</View></View>;
   return (
     // Style statique : sur le web, Link asChild ne transmet pas un style en fonction.
     <Link href={href} asChild>
-      <Pressable style={styles.card}>{content}</Pressable>
+      <Pressable style={styles.card}>
+        <View style={styles.clip}>{content}</View>
+      </Pressable>
     </Link>
   );
 }
@@ -96,6 +99,7 @@ export function Hero({
 }) {
   return (
     <View style={styles.card}>
+      <View style={styles.clip}>
       <View style={[styles.heroBand, { backgroundColor: tint(color, 0.55) }]}>
         {cover ?? (
           <>
@@ -116,6 +120,7 @@ export function Hero({
         {eyebrow ? <T variant="label">{eyebrow}</T> : null}
         <T variant="title">{title}</T>
         {children}
+      </View>
       </View>
     </View>
   );
@@ -168,7 +173,9 @@ const styles = themed(() =>
     grid: { flexDirection: 'row', flexWrap: 'wrap', marginHorizontal: -7 },
     cell: { padding: 7 },
     // Cartes arrondies à ombre douce, comme les Card de ui.tsx.
-    card: { borderRadius: 24, overflow: 'hidden', backgroundColor: colors.paper, ...cardShadow },
+    // Ombre sur la couche extérieure (sans overflow hidden), arrondi + découpe sur la couche intérieure.
+    card: { borderRadius: 24, backgroundColor: colors.paper, ...cardShadow },
+    clip: { borderRadius: 24, overflow: 'hidden' },
     band: { height: 92, justifyContent: 'flex-end', paddingHorizontal: 16 },
     deco: { position: 'absolute' },
     tag: { position: 'absolute', top: 12, left: 12 },

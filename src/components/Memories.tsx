@@ -44,6 +44,7 @@ export function MemoryCard({ memory, coverUrl }: { memory: MemorySummary; coverU
     // Style statique : sur le web, Link asChild ne transmet pas un style en fonction.
     <Link href={{ pathname: '/memory/[id]', params: { id: memory.id } }} asChild>
       <Pressable style={styles.card}>
+        <View style={styles.clip}>
         <View style={[styles.cover, { backgroundColor: tint(color, 0.55) }]}>
           {/* Couverture façon scrapbook : un polaroïd scotché, penché d'un côté ou de l'autre. */}
           <Polaroid
@@ -74,6 +75,7 @@ export function MemoryCard({ memory, coverUrl }: { memory: MemorySummary; coverU
           <View style={[styles.arrow, { backgroundColor: tint(color, 0.75) }]}>
             <Icon name="arrow-up-right" size={18} color={shade(color, 0.45)} />
           </View>
+        </View>
         </View>
       </Pressable>
     </Link>
@@ -116,6 +118,7 @@ export function FeaturedMemory({ memory }: { memory: MemorySummary }) {
   return (
     <Link href={{ pathname: '/memory/[id]', params: { id: memory.id } }} asChild>
       <Pressable style={styles.card}>
+        <View style={styles.clip}>
         <View style={[styles.featuredCover, { backgroundColor: tint(color, 0.55) }]}>
           {memory.photo_paths.length ? (
             <View style={styles.fan}>
@@ -153,6 +156,7 @@ export function FeaturedMemory({ memory }: { memory: MemorySummary }) {
             <Icon name="arrow-up-right" size={18} color={shade(color, 0.45)} />
           </View>
         </View>
+        </View>
       </Pressable>
     </Link>
   );
@@ -171,7 +175,9 @@ export function EmptyMemories({ hint }: { hint?: string }) {
 
 const styles = themed(() =>
   StyleSheet.create({
-    card: { borderRadius: 24, overflow: 'hidden', backgroundColor: colors.paper, ...cardShadow },
+    // Ombre dehors, découpe dedans : sur iOS, overflow hidden coupe aussi l'ombre.
+    card: { borderRadius: 24, backgroundColor: colors.paper, ...cardShadow },
+    clip: { borderRadius: 24, overflow: 'hidden' },
     cover: { height: 170, alignItems: 'center', justifyContent: 'center' },
     badges: { position: 'absolute', left: 12, top: 12, flexDirection: 'row', gap: 6 },
     body: { flexDirection: 'row', alignItems: 'flex-end', gap: 12, padding: 16 },

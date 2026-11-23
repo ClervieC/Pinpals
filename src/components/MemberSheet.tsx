@@ -2,8 +2,7 @@ import BottomSheet, { BottomSheetView } from '@gorhom/bottom-sheet';
 import * as Linking from 'expo-linking';
 import { router } from 'expo-router';
 import { useEffect, useRef } from 'react';
-import { type NativeScrollEvent, type NativeSyntheticEvent, Pressable, StyleSheet, useWindowDimensions, View } from 'react-native';
-import { FlatList } from 'react-native-gesture-handler';
+import { Pressable, StyleSheet, useWindowDimensions, View } from 'react-native';
 
 import { useUserId } from '@/lib/auth';
 import { countryFlag, monthYear } from '@/lib/geo';
@@ -12,6 +11,7 @@ import { colors, radius, shade, themed, tint } from '@/lib/theme';
 import type { MapMember, SocialKey } from '@/lib/types';
 
 import { Avatar } from './Avatar';
+import { SwipePager } from './SwipePager';
 import { Chip } from './Tiles';
 import { Button, cardShadow, Icon, type IconName, T } from './ui';
 
@@ -26,39 +26,20 @@ type Props = {
 };
 
 /**
- * La card d'un membre, dans une bottom sheet. Swipe horizontal pour passer au suivant :
- * la sélection suit, et la carte recentre le pin correspondant.
+ * La card d'un membre, dans une bottom sheet. Swipe horizontal (ou flèches sur ordinateur) pour
+ * passer au suivant : la sélection suit, et la carte recentre le pin correspondant.
  */
 export function MemberSheet({ members, selectedId, onSelect }: Props) {
   const sheet = useRef<BottomSheet>(null);
-  const list = useRef<FlatList<MapMember>>(null);
   const { width: screenWidth } = useWindowDimensions();
   const width = Math.min(screenWidth, MAX_WIDTH);
   const side = (screenWidth - width) / 2;
   const index = members.findIndex((m) => m.id === selectedId);
 
   useEffect(() => {
-    if (index < 0) {
-      sheet.current?.close();
-      return;
-    }
-    sheet.current?.snapToIndex(0);
-    list.current?.scrollToIndex({ index, animated: true });
+    if (index < 0) sheet.current?.close();
+    else sheet.current?.snapToIndex(0);
   }, [index]);
-
-  // Fin de swipe détectée par un court délai sans défilement : react-native-web n'émet pas
-  // onMomentumScrollEnd, donc on ne peut pas s'appuyer dessus pour suivre la fiche affichée.
-  const settle = useRef<ReturnType<typeof setTimeout> | null>(null);
-  useEffect(() => () => clearTimeout(settle.current ?? undefined), []);
-
-  function onScroll(e: NativeSyntheticEvent<NativeScrollEvent>) {
-    const x = e.nativeEvent.contentOffset.x;
-    clearTimeout(settle.current ?? undefined);
-    settle.current = setTimeout(() => {
-      const m = members[Math.round(x / width)];
-      if (m && m.id !== selectedId) onSelect(m.id);
-    }, 140);
-  }
 
   return (
     <BottomSheet
@@ -73,35 +54,22 @@ export function MemberSheet({ members, selectedId, onSelect }: Props) {
       handleIndicatorStyle={{ backgroundColor: colors.line, width: 40 }}
     >
       <BottomSheetView style={{ flex: 1 }}>
-        <FlatList
-          ref={list}
-          data={members}
+        <SwipePager
+          items={members}
+          index={index}
+          width={width}
           keyExtractor={(m) => m.id}
-          horizontal
-          pagingEnabled
-          showsHorizontalScrollIndicator={false}
-          initialScrollIndex={Math.max(index, 0)}
-          getItemLayout={(_, i) => ({ length: width, offset: width * i, index: i })}
-          onScroll={onScroll}
-          scrollEventThrottle={32}
-          renderItem={({ item }) => <MemberCard member={item} width={width} />}
+          renderItem={(m) => <MemberCard member={m} />}
+          onChange={(m) => onSelect(m.id)}
+          previousLabel={t('member.previous')}
+          nextLabel={t('member.next')}
         />
-        {members.length > 1 ? (
-          <View style={styles.dots}>
-            {members.map((m, i) => (
-              <View
-                key={m.id}
-                style={[styles.dot, i === index && { backgroundColor: colors.ink, width: 14 }]}
-              />
-            ))}
-          </View>
-        ) : null}
       </BottomSheetView>
     </BottomSheet>
   );
 }
 
-function MemberCard({ member, width }: { member: MapMember; width: number }) {
+function MemberCard({ member }: { member: MapMember }) {
   const uid = useUserId();
   const since = monthYear(member.location_updated_at);
   const job = [member.job_title, member.company].filter(Boolean).join(' · ');
@@ -110,7 +78,7 @@ function MemberCard({ member, width }: { member: MapMember; width: number }) {
   const isMe = member.id === uid;
 
   return (
-    <View style={[styles.card, { width }]}>
+    <View style={styles.card}>
       {/* Bandeau à la couleur du pin, comme les cartes de groupe. */}
       <View style={[styles.band, { backgroundColor: tint(color, 0.6) }]}>
         <View style={[styles.deco, { top: 12, right: 24 }]}>
@@ -213,7 +181,5 @@ const styles = themed(() =>
     actions: { flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 'auto' },
     social: { width: 44, height: 44, borderRadius: radius.pill, alignItems: 'center', justifyContent: 'center' },
     line: { flexDirection: 'row', alignItems: 'center', gap: 6 },
-    dots: { flexDirection: 'row', justifyContent: 'center', gap: 6, paddingVertical: 14 },
-    dot: { width: 6, height: 6, borderRadius: 3, backgroundColor: colors.line },
   }),
 );

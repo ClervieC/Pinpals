@@ -67,6 +67,22 @@ export type GroupPreview = {
   member_count: number;
 };
 
+/** Un·e ami·e (on partage déjà un groupe) qui n'est pas encore dans ce groupe-ci. */
+export type InvitableFriend = Pick<Profile, 'id' | 'display_name' | 'avatar_url' | 'pin_color' | 'city' | 'country_code'> & {
+  invited: boolean;
+};
+
+/** Une invitation reçue, en attente de réponse. */
+export type GroupInvitation = {
+  group_id: string;
+  name: string;
+  emoji: string;
+  color: string;
+  member_count: number;
+  inviter_name: string | null;
+  created_at: string;
+};
+
 /** Une ligne renvoyée par la RPC get_group_map. */
 export type MapMember = Pick<
   Profile,
@@ -163,6 +179,8 @@ export type MemoryPhoto = {
   path: string;
   uploaded_by: string;
   created_at: string;
+  /** Miniature (~480 px) générée à l'envoi ; null pour les photos plus anciennes. */
+  thumb_path: string | null;
   /** Date de la photo (facultative), distincte de la date du souvenir. */
   taken_on: string | null;
   caption: string | null;
@@ -194,3 +212,32 @@ export type MemoryInput = {
 
 /** Profil d'un·e ami·e (quelqu'un avec qui je partage au moins un groupe). */
 export type Friend = Profile;
+
+export type NotificationKind =
+  | 'memory_comment'
+  | 'photo_comment'
+  | 'photo_like'
+  | 'tagged'
+  | 'group_memory'
+  | 'member_joined'
+  | 'moved';
+
+/** Une ligne renvoyée par la RPC get_my_notifications. */
+export type AppNotification = {
+  id: string;
+  kind: NotificationKind;
+  created_at: string;
+  read_at: string | null;
+  data: { city?: string; country_code?: string };
+  actor_id: string;
+  actor_name: string;
+  actor_avatar_url: string | null;
+  actor_color: string;
+  group_id: string | null;
+  group_name: string | null;
+  group_emoji: string | null;
+  memory_id: string | null;
+  memory_title: string | null;
+  memory_kind: 'memory' | 'trip' | null;
+  photo_id: string | null;
+};

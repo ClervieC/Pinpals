@@ -4,13 +4,14 @@ import { useState } from 'react';
 import { EmptyMemories, FeaturedMemory, MemoryGrid } from '@/components/Memories';
 import { Button, PageHeader, Screen, Segmented } from '@/components/ui';
 import { t } from '@/lib/i18n';
-import { useMemories } from '@/lib/queries';
+import { useMemoriesPaged } from '@/lib/queries';
 import type { MemoryKind } from '@/lib/types';
 
 export default function MemoriesTab() {
-  const memories = useMemories();
+  const memories = useMemoriesPaged();
   const [kind, setKind] = useState<MemoryKind | 'all'>('all');
-  const shown = (memories.data ?? []).filter((m) => kind === 'all' || m.kind === kind);
+  // Filtre appliqué aux pages déjà chargées ; « Voir plus » charge la suite.
+  const shown = memories.items.filter((m) => kind === 'all' || m.kind === kind);
   const add = () => router.push('/memory/new');
 
   return (
@@ -29,11 +30,29 @@ export default function MemoriesTab() {
         <>
           <FeaturedMemory memory={shown[0]} />
           <MemoryGrid memories={shown.slice(1)} error={memories.error} onAdd={add} />
+          {memories.hasNextPage ? (
+            <Button
+              label={t('memories.more')}
+              kind="secondary"
+              icon="chevron-down"
+              loading={memories.isFetchingNextPage}
+              onPress={() => memories.fetchNextPage()}
+            />
+          ) : null}
         </>
       ) : (
         <>
           <EmptyMemories />
           <Button label={t('memories.add')} icon="plus" onPress={add} />
+          {memories.hasNextPage ? (
+            <Button
+              label={t('memories.more')}
+              kind="secondary"
+              icon="chevron-down"
+              loading={memories.isFetchingNextPage}
+              onPress={() => memories.fetchNextPage()}
+            />
+          ) : null}
         </>
       )}
     </Screen>

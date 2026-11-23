@@ -68,7 +68,12 @@ export function GroupMap(props: GroupMapProps) {
       setZoom(m.getZoom());
     }
     m.on('zoomend', () => setZoom(m.getZoom()));
-    m.on('click', () => clearRef.current());
+    m.on('click', (e) => {
+      // Un clic sur un pin remonte aussi jusqu'à la carte : seul un clic sur le fond désélectionne.
+      const target = e.originalEvent.target;
+      if (target instanceof Element && target.closest('.maplibregl-marker')) return;
+      clearRef.current();
+    });
     m.on('load', () => {
       m.addSource('routes', { type: 'geojson', data: routesGeoJSON([]) });
       m.addLayer({ id: 'routes-line', type: 'line', source: 'routes', paint: ROUTE_PAINT, layout: ROUTE_LAYOUT } as maplibregl.LineLayerSpecification);
@@ -121,7 +126,8 @@ export function GroupMap(props: GroupMapProps) {
     source?.setData(routesGeoJSON(routes));
   }, [routes, ready]);
 
-  // Changement de calque : on recadre sur ce qu'il montre (le premier cadre vient de initialView).
+  // Changement de calque, ou fiche fermée : on recadre sur ce que montre le calque
+  // (le premier cadre vient de initialView).
   const firstLayer = useRef(true);
   useEffect(() => {
     if (firstLayer.current) {
@@ -133,10 +139,10 @@ export function GroupMap(props: GroupMapProps) {
       map.current.fitBounds(bounds, {
         padding: { top: topInset + 40, bottom: bottomInset + 40, left: 50, right: 50 },
         maxZoom: 7,
-        duration: 600,
+        duration: 700,
       });
     }
-  }, [props.layer]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [props.layer, props.overviewKey]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // La sélection passe au premier plan et est recentrée au-dessus de la bottom sheet.
   useEffect(() => {

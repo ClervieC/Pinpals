@@ -8,6 +8,7 @@ import { FloatingLogo, PasswordField, PasswordHint } from '@/components/decor';
 import { Button, Card, ErrorText, Field, Screen, Segmented, T } from '@/components/ui';
 import { authErrorMessage, MIN_PASSWORD } from '@/lib/authErrors';
 import { t } from '@/lib/i18n';
+import { pendingInvite } from '@/lib/invite';
 import { supabase } from '@/lib/supabase';
 import { colors, fonts, themed } from '@/lib/theme';
 
@@ -54,10 +55,13 @@ export default function SignIn() {
     }
 
     if (mode === 'sign-up') {
+      // Invitation en cours : le code voyage dans le lien de confirmation, au cas où
+      // l'email serait ouvert dans un autre navigateur que celui de l'inscription.
+      const invite = await pendingInvite.get();
       const { data, error: e } = await supabase.auth.signUp({
         email: address,
         password,
-        options: { emailRedirectTo: Linking.createURL('/auth/callback') },
+        options: { emailRedirectTo: Linking.createURL('/auth/callback', { queryParams: invite ? { invite } : undefined }) },
       });
       setLoading(false);
       if (e) setError(authErrorMessage(e));

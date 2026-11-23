@@ -5,6 +5,7 @@ import { Pressable, StyleSheet, View } from 'react-native';
 
 import { Avatar } from '@/components/Avatar';
 import { ConfirmButton, GroupForm } from '@/components/GroupForm';
+import { InviteFriends } from '@/components/GroupInvitations';
 import { InviteButton } from '@/components/InviteButton';
 import { Chip, Hero } from '@/components/Tiles';
 import { Button, ErrorText, Icon, Loading, Screen, SectionCard, T } from '@/components/ui';
@@ -55,6 +56,8 @@ export default function GroupSettings() {
       >
         <Chip icon="users" label={tn('common.members', members.data?.length ?? g.member_count)} />
       </Hero>
+
+      <InviteFriends groupId={id} />
 
       <SectionCard icon="send" title={t('settings.inviteCode')}>
         <Pressable onPress={copy} style={[styles.codeBox, { backgroundColor: tint(g.color, 0.8), borderColor: tint(g.color, 0.35) }]}>

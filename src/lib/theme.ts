@@ -1,3 +1,5 @@
+import { Platform } from 'react-native';
+
 export type Scheme = 'light' | 'dark';
 
 const light = {
@@ -12,24 +14,24 @@ const light = {
   danger: '#E0352B',
 };
 
+// Bleu nuit plutôt que brun : le corail et les couleurs de groupe ressortent au lieu de se salir.
 const dark: typeof light = {
-  cream: '#151210', // fond : brun très sombre plutôt que noir pur
-  paper: '#221E1B',
-  muted: '#2C2723',
-  ink: '#F3EDE7',
-  inkSoft: '#A99F97',
-  line: '#3A332E',
+  cream: '#0F1218', // fond des écrans
+  paper: '#1A1E27', // cartes, champs : un cran plus clair que le fond
+  muted: '#252A35',
+  ink: '#F1F0EC',
+  inkSoft: '#9AA0AD',
+  line: '#2B303C',
   accent: '#FF6B4E', // corail un peu plus clair : meilleur contraste sur fond sombre
   onAccent: '#FFFFFF',
-  danger: '#FF645A',
+  danger: '#FF6159',
 };
 
-// tint() mélange vers la « surface » et shade() vers le « contraste » : en sombre, les pastilles
-// teintées se fondent vers le fond sombre et le texte coloré s'éclaircit au lieu de foncer.
-const mixTargets: Record<Scheme, { tint: number[]; shade: number[] }> = {
-  light: { tint: [255, 255, 255], shade: [0, 0, 0] },
-  dark: { tint: [30, 26, 23], shade: [255, 255, 255] },
-};
+// shade() mélange vers le « contraste » : en sombre, le texte coloré s'éclaircit au lieu de foncer.
+const shadeTargets: Record<Scheme, number[]> = { light: [0, 0, 0], dark: [255, 255, 255] };
+
+/** Luminosité vers laquelle tint() assombrit en mode sombre (≈ celle des cartes). */
+const DARK_SURFACE_L = 0.15;
 
 /**
  * Couleurs du thème actif. L'objet est modifié en place par applyScheme() : à lire au rendu
@@ -90,32 +92,75 @@ export const pastels = [
 
 export const groupEmojis = ['🎓', '🏫', '🧸', '🏡', '⚽️', '🎸', '💼', '✈️', '🌻', '🍕', '🎮', '💖'];
 
+/**
+ * Police qui ne contient que les drapeaux (déclarée sur le web par webStyles.web.ts quand le
+ * navigateur ne sait pas les dessiner, c'est-à-dire sous Windows).
+ */
+export const FLAG_FONT = 'Twemoji Country Flags';
+
+// Sur le web, la police des drapeaux passe en premier : elle ne couvre que les drapeaux, tout
+// le reste du texte retombe sur Inter / Bricolage. Si elle n'est pas déclarée, elle est ignorée.
+const family = (name: string) => (Platform.OS === 'web' ? `"${FLAG_FONT}", ${name}` : name);
+
 export const fonts = {
   /** Titres : grotesque à caractère, pour le côté fun. */
-  display: 'BricolageGrotesque_700Bold',
-  displayHeavy: 'BricolageGrotesque_800ExtraBold',
-  regular: 'Inter_400Regular',
-  medium: 'Inter_500Medium',
-  semibold: 'Inter_600SemiBold',
-  bold: 'Inter_700Bold',
-  black: 'Inter_700Bold',
+  display: family('BricolageGrotesque_700Bold'),
+  displayHeavy: family('BricolageGrotesque_800ExtraBold'),
+  regular: family('Inter_400Regular'),
+  medium: family('Inter_500Medium'),
+  semibold: family('Inter_600SemiBold'),
+  bold: family('Inter_700Bold'),
+  black: family('Inter_700Bold'),
 };
 
 export const radius = { sm: 8, md: 12, lg: 16, pill: 999 };
 
-function mix(hex: string, target: number[], amount: number): string {
+function rgb(hex: string): number[] {
   const n = parseInt(hex.slice(1, 7), 16);
-  const channels = [(n >> 16) & 255, (n >> 8) & 255, n & 255];
-  const [r, g, b] = channels.map((c, i) => Math.round(c + (target[i] - c) * amount));
-  return `#${((1 << 24) | (r << 16) | (g << 8) | b).toString(16).slice(1)}`;
+  return [(n >> 16) & 255, (n >> 8) & 255, n & 255];
 }
 
-/** Éclaircit vers la surface (blanc en clair, fond sombre en sombre) ; amount = 0..1. Pour les fonds teintés. */
+function toHex([r, g, b]: number[]): string {
+  return `#${((1 << 24) | (Math.round(r) << 16) | (Math.round(g) << 8) | Math.round(b)).toString(16).slice(1)}`;
+}
+
+function mix(hex: string, target: number[], amount: number): string {
+  return toHex(rgb(hex).map((c, i) => c + (target[i] - c) * amount));
+}
+
+function toHsl(hex: string): [number, number, number] {
+  const [r, g, b] = rgb(hex).map((c) => c / 255);
+  const max = Math.max(r, g, b);
+  const min = Math.min(r, g, b);
+  const l = (max + min) / 2;
+  if (max === min) return [0, 0, l];
+  const d = max - min;
+  const s = d / (1 - Math.abs(2 * l - 1));
+  const h = max === r ? ((g - b) / d + 6) % 6 : max === g ? (b - r) / d + 2 : (r - g) / d + 4;
+  return [h * 60, s, l];
+}
+
+function fromHsl(h: number, s: number, l: number): string {
+  const c = (1 - Math.abs(2 * l - 1)) * s;
+  const x = c * (1 - Math.abs(((h / 60) % 2) - 1));
+  const m = l - c / 2;
+  const [r, g, b] = h < 60 ? [c, x, 0] : h < 120 ? [x, c, 0] : h < 180 ? [0, c, x] : h < 240 ? [0, x, c] : h < 300 ? [x, 0, c] : [c, 0, x];
+  return toHex([r, g, b].map((v) => (v + m) * 255));
+}
+
+/**
+ * Version « surface » d'une couleur, pour les fonds teintés ; amount = 0..1.
+ * En clair : mélange vers le blanc (pastel). En sombre : on garde la teinte et une bonne partie
+ * de la saturation et on baisse la luminosité, ce qui donne une couleur profonde (corail → rouge
+ * brique, menthe → vert sapin) au lieu d'un mélange terne avec le fond.
+ */
 export function tint(hex: string, amount: number): string {
-  return mix(hex, mixTargets[scheme].tint, amount);
+  if (scheme === 'light') return mix(hex, [255, 255, 255], amount);
+  const [h, s, l] = toHsl(hex);
+  return fromHsl(h, s * (1 - 0.4 * amount), l + (DARK_SURFACE_L - l) * amount);
 }
 
 /** Renforce vers le contraste (noir en clair, blanc en sombre) ; amount = 0..1. Pour du texte lisible sur fond teinté. */
 export function shade(hex: string, amount: number): string {
-  return mix(hex, mixTargets[scheme].shade, amount);
+  return mix(hex, shadeTargets[scheme], amount);
 }

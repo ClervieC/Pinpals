@@ -44,13 +44,9 @@ export async function searchCities(query: string, signal?: AbortSignal): Promise
   return cities;
 }
 
-/** "RO" -> 🇷🇴 */
-// Windows n'a pas d'emojis drapeaux : il afficherait « RO ». On met un pin à la place.
-const NO_FLAG_EMOJI = typeof navigator !== 'undefined' && /Windows/i.test(navigator.userAgent ?? '');
-
+/** "RO" -> 🇷🇴 (sous Windows, la police de webStyles.web.ts fournit les drapeaux). */
 export function countryFlag(code: string | null | undefined): string {
   if (!code || code.length !== 2) return '';
-  if (NO_FLAG_EMOJI) return '📍';
   return String.fromCodePoint(...[...code.toUpperCase()].map((c) => 0x1f1a5 + c.charCodeAt(0)));
 }
 

@@ -43,5 +43,6 @@ yarn-error.*
 
 # worker maplibre-gl copié par scripts/copy-maplibre-worker.mjs
 /public/maplibre
+/public/fonts
 
 .claude/*

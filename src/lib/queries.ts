@@ -1,17 +1,21 @@
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { decode } from 'base64-arraybuffer';
+import { ImageManipulator, SaveFormat } from 'expo-image-manipulator';
 
 import { useUserId } from './auth';
 import { supabase } from './supabase';
 import type {
   Address,
+  AppNotification,
   AddressInput,
   City,
   Friend,
   FriendNoteInput,
   FriendPrivateNote,
+  GroupInvitation,
   GroupMember,
   GroupPreview,
+  InvitableFriend,
   MapMember,
   Memory,
   MemoryComment,
@@ -32,6 +36,10 @@ export const keys = {
   groupMap: (gid: string) => ['group-map', gid] as const,
   groupMembers: (gid: string) => ['group-members', gid] as const,
   preview: (code: string) => ['group-preview', code] as const,
+  invitable: (gid: string) => ['invitable-friends', gid] as const,
+  myInvitations: ['my-invitations'] as const,
+  notifications: ['notifications'] as const,
+  unreadNotifications: ['notifications', 'unread'] as const,
   friends: ['friends'] as const,
   myAddress: ['my-address'] as const,
   addressShares: ['address-shares'] as const,
@@ -108,6 +116,46 @@ export async function uploadAvatar(uid: string, base64: string, mimeType = 'imag
   return supabase.storage.from('avatars').getPublicUrl(path).data.publicUrl;
 }
 
+// --- Suppression de compte --------------------------------------------------------
+
+/** Supprime des fichiers par lots (l'API storage limite la taille d'une requête). */
+async function removeFiles(bucket: string, paths: string[]) {
+  for (let i = 0; i < paths.length; i += 100) {
+    unwrap(await supabase.storage.from(bucket).remove(paths.slice(i, i + 100)));
+  }
+}
+
+/**
+ * Supprime définitivement le compte. D'abord les fichiers (seule l'API storage peut les effacer) :
+ * l'avatar, mes photos, et les photos des souvenirs que j'ai écrits (ces souvenirs vont disparaître).
+ * Puis delete_my_account() quitte chaque groupe et supprime l'utilisateur ; le reste suit en cascade.
+ */
+export function useDeleteAccount() {
+  const uid = useUserId();
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async () => {
+      const avatars = unwrap(await supabase.storage.from('avatars').list(uid, { limit: 1000 }));
+      await removeFiles('avatars', avatars.map((f) => `${uid}/${f.name}`));
+
+      type Row = Pick<MemoryPhoto, 'path' | 'thumb_path'>;
+      const [mine, onMyMemories] = await Promise.all([
+        supabase.from('memory_photos').select('path, thumb_path').eq('uploaded_by', uid),
+        supabase.from('memory_photos').select('path, thumb_path, memories!inner(author_id)').eq('memories.author_id', uid),
+      ]);
+      const files = new Set([...unwrap<Row[]>(mine), ...unwrap<Row[]>(onMyMemories)].flatMap(photoFiles));
+      await removeFiles(MEMORIES_BUCKET, [...files]);
+
+      unwrap(await supabase.rpc('delete_my_account'));
+    },
+    onSuccess: async () => {
+      // Le compte n'existe plus : on oublie la session locale et toutes les données en cache.
+      await supabase.auth.signOut({ scope: 'local' });
+      qc.clear();
+    },
+  });
+}
+
 // --- Groupes ----------------------------------------------------------------
 
 export function useMyGroups(enabled = true) {
@@ -172,7 +220,11 @@ export function useJoinGroup() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async (code: string) => unwrap<string>(await supabase.rpc('join_group', { code })),
-    onSuccess: () => qc.invalidateQueries({ queryKey: keys.myGroups }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: keys.myGroups });
+      // Rejoindre par lien efface une éventuelle invitation en attente pour ce groupe.
+      qc.invalidateQueries({ queryKey: keys.myInvitations });
+    },
   });
 }
 
@@ -212,6 +264,92 @@ export function useRemoveMember(gid: string) {
       qc.invalidateQueries({ queryKey: keys.groupMembers(gid) });
       qc.invalidateQueries({ queryKey: keys.groupMap(gid) });
       qc.invalidateQueries({ queryKey: keys.myGroups });
+    },
+  });
+}
+
+// --- Invitations entre ami·es ------------------------------------------------
+
+/** Mes ami·es pas encore dans ce groupe : on ne peut inviter que des gens qu'on connaît déjà. */
+export function useInvitableFriends(gid: string) {
+  return useQuery({
+    queryKey: keys.invitable(gid),
+    enabled: !!gid,
+    queryFn: async () => unwrap<InvitableFriend[]>(await supabase.rpc('get_invitable_friends', { gid })),
+  });
+}
+
+/** Inviter ou retirer l'invitation, avec mise à jour instantanée du bouton. */
+export function useToggleGroupInvitation(gid: string) {
+  const qc = useQueryClient();
+  const key = keys.invitable(gid);
+  return useMutation({
+    mutationFn: async ({ uid, invite }: { uid: string; invite: boolean }) =>
+      unwrap(await supabase.rpc(invite ? 'invite_to_group' : 'cancel_group_invitation', { gid, uid })),
+    onMutate: async ({ uid, invite }) => {
+      await qc.cancelQueries({ queryKey: key });
+      const previous = qc.getQueryData<InvitableFriend[]>(key);
+      qc.setQueryData<InvitableFriend[]>(key, (list) => list?.map((f) => (f.id === uid ? { ...f, invited: invite } : f)));
+      return { previous };
+    },
+    onError: (_e, _v, ctx) => qc.setQueryData(key, ctx?.previous),
+    onSettled: () => qc.invalidateQueries({ queryKey: key }),
+  });
+}
+
+export function useMyInvitations() {
+  return useQuery({
+    queryKey: keys.myInvitations,
+    queryFn: async () => unwrap<GroupInvitation[]>(await supabase.rpc('get_my_invitations')),
+  });
+}
+
+export function useRespondToInvitation() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ gid, accept }: { gid: string; accept: boolean }) =>
+      unwrap(await supabase.rpc('respond_to_invitation', { gid, accept })),
+    onSuccess: (_d, { accept }) => {
+      qc.invalidateQueries({ queryKey: keys.myInvitations });
+      if (accept) {
+        qc.invalidateQueries({ queryKey: keys.myGroups });
+        qc.invalidateQueries({ queryKey: keys.friends });
+      }
+    },
+  });
+}
+
+// --- Notifications dans l'app ------------------------------------------------
+// Pas de push : elles sont relues à l'ouverture de l'app et au retour au premier plan.
+
+export function useNotifications() {
+  const query = useInfiniteQuery({
+    queryKey: keys.notifications,
+    initialPageParam: 0,
+    queryFn: async ({ pageParam }) =>
+      unwrap<AppNotification[]>(
+        await supabase.rpc('get_my_notifications').range(pageParam, pageParam + PAGE_SIZE - 1),
+      ),
+    getNextPageParam: (last, pages) => (last.length < PAGE_SIZE ? undefined : pages.length * PAGE_SIZE),
+  });
+  return { ...query, items: query.data?.pages.flat() ?? [] };
+}
+
+export function useUnreadNotifications() {
+  return useQuery({
+    queryKey: keys.unreadNotifications,
+    queryFn: async () => Number(unwrap<number>(await supabase.rpc('count_unread_notifications'))),
+  });
+}
+
+export function useMarkNotificationsRead() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async () => unwrap(await supabase.rpc('mark_notifications_read')),
+    onSuccess: () => {
+      qc.setQueryData(keys.unreadNotifications, 0);
+      // La liste affichée garde ses « nouveau » pendant la visite ; la prochaine ouverture la relit.
+      qc.invalidateQueries({ queryKey: keys.notifications, exact: true, refetchType: 'none' });
     },
   });
 }
@@ -370,6 +508,30 @@ export function useMemories(filter: MemoryFilter = {}) {
   });
 }
 
+/** Taille des pages de souvenirs et de commentaires. */
+export const PAGE_SIZE = 20;
+
+/**
+ * Souvenirs par pages de PAGE_SIZE (listes et fils), du plus récent au plus ancien.
+ * La carte garde useMemories : elle a besoin de tous les pins d'un coup.
+ * Clé sous ['memories', …] : les invalidations existantes s'appliquent aussi aux pages.
+ */
+export function useMemoriesPaged(filter: MemoryFilter = {}) {
+  const query = useInfiniteQuery({
+    queryKey: [...keys.memories(filter), 'paged'],
+    initialPageParam: 0,
+    queryFn: async ({ pageParam }) =>
+      unwrap<MemorySummary[]>(
+        await supabase
+          .rpc('get_memories', { p_group_id: filter.groupId ?? null, p_friend_id: filter.friendId ?? null })
+          .range(pageParam, pageParam + PAGE_SIZE - 1),
+      ),
+    // Page incomplète : c'était la dernière.
+    getNextPageParam: (last, pages) => (last.length < PAGE_SIZE ? undefined : pages.length * PAGE_SIZE),
+  });
+  return { ...query, items: query.data?.pages.flat() ?? [] };
+}
+
 export type MemoryDetail = Memory & { photos: MemoryPhoto[]; people: string[]; stops: MemoryStop[] };
 
 export function useMemory(mid: string) {
@@ -458,16 +620,47 @@ export function useDeleteMemory(mid: string) {
   });
 }
 
-export type PhotoUpload = { base64: string; mimeType: string };
+/** `uri` (image choisie dans la galerie) sert à générer la miniature ; sans elle, pas de miniature. */
+export type PhotoUpload = { base64: string; mimeType: string; uri?: string };
 
-/** Upload dans memories/<memory_id>/<horodatage>.<ext> puis enregistre la photo. */
+/** Largeur des miniatures : assez pour les murs de polaroïds et les cartes, ~30-60 Ko. */
+const THUMB_WIDTH = 480;
+
+/** Miniature JPEG en base64 ; null si la génération échoue (la photo est quand même envoyée). */
+async function makeThumbnail(uri: string): Promise<string | null> {
+  try {
+    const context = ImageManipulator.manipulate(uri);
+    context.resize({ width: THUMB_WIDTH, height: null });
+    const rendered = await context.renderAsync();
+    const result = await rendered.saveAsync({ format: SaveFormat.JPEG, compress: 0.6, base64: true });
+    return result.base64 ?? null;
+  } catch {
+    return null;
+  }
+}
+
+/** Upload dans memories/<memory_id>/<horodatage>.<ext> (+ miniature .thumb.jpg) puis enregistre la photo. */
 async function uploadMemoryPhotos(mid: string, images: PhotoUpload[]) {
+  const bucket = supabase.storage.from(MEMORIES_BUCKET);
   for (const image of images) {
     const ext = image.mimeType.split('/')[1] ?? 'jpg';
-    const path = `${mid}/${Date.now()}-${Math.random().toString(36).slice(2, 8)}.${ext}`;
-    unwrap(await supabase.storage.from(MEMORIES_BUCKET).upload(path, decode(image.base64), { contentType: image.mimeType }));
-    unwrap(await supabase.from('memory_photos').insert({ memory_id: mid, path }));
+    const base = `${mid}/${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+    const path = `${base}.${ext}`;
+    unwrap(await bucket.upload(path, decode(image.base64), { contentType: image.mimeType }));
+
+    let thumbPath: string | null = null;
+    const thumb = image.uri ? await makeThumbnail(image.uri) : null;
+    if (thumb) {
+      const { error } = await bucket.upload(`${base}.thumb.jpg`, decode(thumb), { contentType: 'image/jpeg' });
+      if (!error) thumbPath = `${base}.thumb.jpg`;
+    }
+    unwrap(await supabase.from('memory_photos').insert({ memory_id: mid, path, thumb_path: thumbPath }));
   }
+}
+
+/** Fichiers d'une photo dans le bucket : l'original et sa miniature éventuelle. */
+export function photoFiles(photo: Pick<MemoryPhoto, 'path' | 'thumb_path'>): string[] {
+  return photo.thumb_path ? [photo.path, photo.thumb_path] : [photo.path];
 }
 
 export function useAddMemoryPhotos(mid: string) {
@@ -485,7 +678,7 @@ export function useDeleteMemoryPhoto(mid: string) {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async (photo: MemoryPhoto) => {
-      unwrap(await supabase.storage.from(MEMORIES_BUCKET).remove([photo.path]));
+      unwrap(await supabase.storage.from(MEMORIES_BUCKET).remove(photoFiles(photo)));
       unwrap(await supabase.from('memory_photos').delete().eq('id', photo.id));
     },
     onSuccess: () => {
@@ -497,18 +690,35 @@ export function useDeleteMemoryPhoto(mid: string) {
 
 // --- Commentaires --------------------------------------------------------------
 
+/**
+ * Commentaires d'un souvenir, les PAGE_SIZE plus récents d'abord ; « plus anciens » charge la page suivante.
+ * `items` est remis dans l'ordre chronologique pour l'affichage ; `total` compte tous les commentaires.
+ */
 export function useMemoryComments(mid: string) {
-  return useQuery({
+  const query = useInfiniteQuery({
     queryKey: keys.memoryComments(mid),
-    queryFn: async () =>
-      unwrap<MemoryComment[]>(
-        await supabase
-          .from('memory_comments')
-          .select('*, author:profiles!memory_comments_author_id_fkey(id, display_name, avatar_url, pin_color)')
-          .eq('memory_id', mid)
-          .order('created_at'),
-      ),
+    initialPageParam: 0,
+    queryFn: async ({ pageParam }) => {
+      const { data, error, count } = await supabase
+        .from('memory_comments')
+        .select('*, author:profiles!memory_comments_author_id_fkey(id, display_name, avatar_url, pin_color)', {
+          count: 'exact',
+        })
+        .eq('memory_id', mid)
+        .order('created_at', { ascending: false })
+        .order('id', { ascending: false })
+        .range(pageParam, pageParam + PAGE_SIZE - 1);
+      if (error) throw new Error(error.message);
+      return { rows: (data ?? []) as MemoryComment[], total: count ?? 0 };
+    },
+    getNextPageParam: (last, pages) => (last.rows.length < PAGE_SIZE ? undefined : pages.length * PAGE_SIZE),
   });
+  const pages = query.data?.pages ?? [];
+  return {
+    ...query,
+    items: pages.flatMap((p) => p.rows).reverse(),
+    total: pages[0]?.total ?? 0,
+  };
 }
 
 export function useAddMemoryComment(mid: string) {
@@ -562,6 +772,9 @@ export function useUpdateMemoryPhoto(mid: string) {
   });
 }
 
+type PhotoSocial = { likes: PhotoLike[]; comments: PhotoComment[] };
+
+/** Like instantané : le cœur change tout de suite (mise à jour optimiste), annulée si le serveur refuse. */
 export function useTogglePhotoLike(mid: string) {
   const uid = useUserId();
   const qc = useQueryClient();
@@ -573,7 +786,25 @@ export function useTogglePhotoLike(mid: string) {
           : await supabase.from('memory_photo_likes').insert({ photo_id: photoId }),
       );
     },
-    onSuccess: () => qc.invalidateQueries({ queryKey: keys.photoSocial(mid) }),
+    onMutate: async ({ photoId, liked }) => {
+      await qc.cancelQueries({ queryKey: keys.photoSocial(mid) });
+      const previous = qc.getQueriesData<PhotoSocial>({ queryKey: keys.photoSocial(mid) });
+      qc.setQueriesData<PhotoSocial>({ queryKey: keys.photoSocial(mid) }, (data) =>
+        data
+          ? {
+              ...data,
+              likes: liked
+                ? data.likes.filter((l) => !(l.photo_id === photoId && l.user_id === uid))
+                : [...data.likes, { photo_id: photoId, user_id: uid }],
+            }
+          : data,
+      );
+      return { previous };
+    },
+    onError: (_error, _vars, context) => {
+      context?.previous.forEach(([key, data]) => qc.setQueryData(key, data));
+    },
+    onSettled: () => qc.invalidateQueries({ queryKey: keys.photoSocial(mid) }),
   });
 }
 

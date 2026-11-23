@@ -17,7 +17,7 @@ import {
   type ViewStyle,
 } from 'react-native';
 import Animated, { useAnimatedStyle, useSharedValue, withRepeat, withTiming } from 'react-native-reanimated';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { t, translateServerMessage } from '@/lib/i18n';
 import { colors, currentScheme, fonts, pastels, radius, shade, themed, tint } from '@/lib/theme';
@@ -73,12 +73,15 @@ export function Screen({
   decor = background === colors.cream,
   accent,
 }: ScreenProps) {
+  const insets = useSafeAreaInsets();
+  // Téléphone à encoche / Dynamic Island : un peu d'air en plus sous la zone système.
+  const topGap = edges.includes('top') && insets.top > 0 ? 8 : 0;
   const content = <View style={styles.screenContent}>{children}</View>;
   return (
     // overflow hidden : les bulles débordent des bords sans agrandir la page.
     <View style={[styles.screen, { backgroundColor: background, overflow: 'hidden' }]}>
       {decor ? <Decorations accent={accent} /> : null}
-      <SafeAreaView style={styles.screen} edges={edges}>
+      <SafeAreaView style={[styles.screen, { paddingTop: topGap }]} edges={edges}>
       {scroll ? (
         <ScrollView
           keyboardShouldPersistTaps="handled"
