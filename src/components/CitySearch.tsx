@@ -3,7 +3,7 @@ import { ActivityIndicator, Pressable, StyleSheet, View } from 'react-native';
 
 import { countryFlag, searchCities } from '@/lib/geo';
 import { t } from '@/lib/i18n';
-import { colors, radius } from '@/lib/theme';
+import { colors, radius, themed } from '@/lib/theme';
 import type { City } from '@/lib/types';
 
 import { ErrorText, Field, T } from './ui';
@@ -73,15 +73,17 @@ export function CitySearch({ onSelect }: { onSelect: (city: City) => void }) {
   );
 }
 
-const styles = StyleSheet.create({
-  result: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-    padding: 14,
-    borderRadius: radius.md,
-    backgroundColor: colors.paper,
-    borderWidth: 1,
-    borderColor: colors.line,
-  },
-});
+const styles = themed(() =>
+  StyleSheet.create({
+    result: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 12,
+      padding: 14,
+      borderRadius: radius.md,
+      backgroundColor: colors.paper,
+      borderWidth: 1,
+      borderColor: colors.line,
+    },
+  }),
+);

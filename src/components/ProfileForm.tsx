@@ -4,11 +4,11 @@ import { View } from 'react-native';
 import { t } from '@/lib/i18n';
 import { useSaveProfile } from '@/lib/queries';
 import { pastels } from '@/lib/theme';
-import type { Favorites, Profile, SocialKey, Socials } from '@/lib/types';
+import type { FavoriteKey, Favorites, Profile, SocialKey, Socials } from '@/lib/types';
 
 import { AvatarPicker } from './AvatarPicker';
 import { DateField, type DateParts, parseDate } from './DateField';
-import { FavoritesFields } from './FriendCard';
+import { cleanFavorite, FavoritesFields } from './FriendCard';
 import { SOCIALS } from './MemberSheet';
 import { Button, ColorPicker, ErrorText, Field, SectionCard, T } from './ui';
 
@@ -51,7 +51,12 @@ export function ProfileForm({ profile, submitLabel, full = false, onSaved }: Pro
         birthday_day: parsedBirthday && parsedBirthday !== 'invalid' ? parsedBirthday.day : null,
         birthday_month: parsedBirthday && parsedBirthday !== 'invalid' ? parsedBirthday.month : null,
         birth_year: parsedBirthday && parsedBirthday !== 'invalid' ? parsedBirthday.year : null,
-        favorites: Object.fromEntries(Object.entries(favorites).filter(([, v]) => v?.trim())),
+        favorites: Object.fromEntries(
+          (Object.entries(favorites) as [FavoriteKey, string | undefined][]).flatMap(([k, v]) => {
+            const clean = cleanFavorite(k, v ?? '');
+            return clean ? [[k, clean]] : [];
+          }),
+        ),
         wishlist: clean(wishlist),
         ...(full && {
           job_title: clean(jobTitle),

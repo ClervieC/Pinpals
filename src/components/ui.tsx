@@ -1,5 +1,6 @@
 import Feather from '@expo/vector-icons/Feather';
-import type { ComponentProps, PropsWithChildren, ReactNode } from 'react';
+import { Image } from 'expo-image';
+import { type ComponentProps, type PropsWithChildren, type ReactNode, useEffect } from 'react';
 import {
   ActivityIndicator,
   Pressable,
@@ -15,10 +16,11 @@ import {
   type StyleProp,
   type ViewStyle,
 } from 'react-native';
+import Animated, { useAnimatedStyle, useSharedValue, withRepeat, withTiming } from 'react-native-reanimated';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { t, translateServerMessage } from '@/lib/i18n';
-import { colors, fonts, radius, shade, tint } from '@/lib/theme';
+import { colors, currentScheme, fonts, pastels, radius, shade, themed, tint } from '@/lib/theme';
 
 // --- Icônes -----------------------------------------------------------------
 
@@ -36,15 +38,30 @@ export function T({ variant = 'body', style, ...props }: TextProps & { variant?:
   return <Text {...props} style={[text[variant], style]} />;
 }
 
-const text = StyleSheet.create({
-  title: { fontFamily: fonts.displayHeavy, fontSize: 32, color: colors.ink, letterSpacing: -0.8, lineHeight: 36 },
-  heading: { fontFamily: fonts.display, fontSize: 18, color: colors.ink, letterSpacing: -0.2 },
-  body: { fontFamily: fonts.regular, fontSize: 15, color: colors.ink, lineHeight: 22 },
-  label: { fontFamily: fonts.medium, fontSize: 13, color: colors.inkSoft },
-  caption: { fontFamily: fonts.regular, fontSize: 13, color: colors.inkSoft, lineHeight: 18 },
-});
+const text = themed(() =>
+  StyleSheet.create({
+    title: { fontFamily: fonts.displayHeavy, fontSize: 32, color: colors.ink, letterSpacing: -0.8, lineHeight: 36 },
+    heading: { fontFamily: fonts.display, fontSize: 18, color: colors.ink, letterSpacing: -0.2 },
+    body: { fontFamily: fonts.regular, fontSize: 15, color: colors.ink, lineHeight: 22 },
+    label: { fontFamily: fonts.medium, fontSize: 13, color: colors.inkSoft },
+    caption: { fontFamily: fonts.regular, fontSize: 13, color: colors.inkSoft, lineHeight: 18 },
+  }),
+);
 
 // --- Écran ------------------------------------------------------------------
+
+export type ScreenProps = PropsWithChildren<{
+  scroll?: boolean;
+  background?: string;
+  /** Onglets : pas de marge basse (la barre d'onglets s'en charge). Pages avec en-tête natif : pas de marge haute. */
+  edges?: ('top' | 'bottom')[];
+  refreshing?: boolean;
+  onRefresh?: () => void;
+  /** Fond décoré (bulles pastel). Par défaut sur le fond crème ; `false` pour un fond uni. */
+  decor?: boolean;
+  /** Teinte des bulles (ex. la couleur d'un groupe). */
+  accent?: string;
+}>;
 
 export function Screen({
   children,
@@ -53,17 +70,15 @@ export function Screen({
   edges = ['top', 'bottom'],
   refreshing,
   onRefresh,
-}: PropsWithChildren<{
-  scroll?: boolean;
-  background?: string;
-  /** Onglets : pas de marge basse (la barre d'onglets s'en charge). Pages avec en-tête natif : pas de marge haute. */
-  edges?: ('top' | 'bottom')[];
-  refreshing?: boolean;
-  onRefresh?: () => void;
-}>) {
+  decor = background === colors.cream,
+  accent,
+}: ScreenProps) {
   const content = <View style={styles.screenContent}>{children}</View>;
   return (
-    <SafeAreaView style={[styles.screen, { backgroundColor: background }]} edges={edges}>
+    // overflow hidden : les bulles débordent des bords sans agrandir la page.
+    <View style={[styles.screen, { backgroundColor: background, overflow: 'hidden' }]}>
+      {decor ? <Decorations accent={accent} /> : null}
+      <SafeAreaView style={styles.screen} edges={edges}>
       {scroll ? (
         <ScrollView
           keyboardShouldPersistTaps="handled"
@@ -75,11 +90,46 @@ export function Screen({
       ) : (
         content
       )}
-    </SafeAreaView>
+      </SafeAreaView>
+    </View>
   );
 }
 
-/** Bloc blanc bordé : sections, listes, formulaires. */
+// --- Fond décoré : grandes bulles pastel coupées aux bords --------------------
+
+const BLOBS = [
+  { size: 280, top: -110, left: -120 },
+  { size: 230, top: 160, right: -130 },
+  { size: 250, bottom: -90, left: -100 },
+  { size: 190, bottom: 70, right: -80 },
+];
+
+/** À placer en premier enfant d'un conteneur `overflow: hidden`. */
+export function Decorations({ accent }: { accent?: string }) {
+  const palette = accent ? [accent, pastels[5], accent, pastels[6]] : [pastels[0], pastels[4], pastels[3], pastels[6]];
+  return (
+    <View pointerEvents="none" style={StyleSheet.absoluteFill}>
+      {BLOBS.map(({ size, ...pos }, i) => (
+        <View
+          key={i}
+          style={[{ position: 'absolute', width: size, height: size, borderRadius: size / 2, backgroundColor: tint(palette[i], 0.82) }, pos]}
+        />
+      ))}
+    </View>
+  );
+}
+
+/** Ombre douce des cartes blanches. */
+// Ombre noire dans les deux thèmes (une ombre claire sur fond sombre ressemblerait à un halo), plus marquée en sombre.
+export const cardShadow = themed(() => ({
+  shadowColor: '#000',
+  shadowOpacity: currentScheme() === 'dark' ? 0.35 : 0.07,
+  shadowRadius: 20,
+  shadowOffset: { width: 0, height: 8 },
+  elevation: 3,
+}));
+
+/** Carte blanche arrondie à ombre douce : sections, listes, formulaires. */
 export function Card({ children, style }: PropsWithChildren<{ style?: StyleProp<ViewStyle> }>) {
   return <View style={[styles.card, style]}>{children}</View>;
 }
@@ -285,96 +335,106 @@ export function ErrorText({ error }: { error: unknown }) {
 export function Loading() {
   return (
     <View style={[styles.screen, { alignItems: 'center', justifyContent: 'center', backgroundColor: colors.cream }]}>
-      <ActivityIndicator color={colors.inkSoft} />
+      <PulsingLogo />
     </View>
   );
 }
 
-const styles = StyleSheet.create({
-  screen: { flex: 1 },
-  // Pages centrées sur 760 px : pas d'étirement sur grand écran (même gabarit que l'accueil).
-  screenContent: { flex: 1, width: '100%', maxWidth: 760, alignSelf: 'center', paddingHorizontal: 20, paddingVertical: 16, gap: 16 },
-  scroll: { flexGrow: 1 },
-  card: {
-    padding: 16,
-    gap: 12,
-    borderRadius: radius.lg,
-    backgroundColor: colors.paper,
-    borderWidth: StyleSheet.hairlineWidth * 2,
-    borderColor: colors.line,
-  },
-  sectionTitle: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 8 },
-  sectionTitleText: {
-    fontFamily: fonts.semibold,
-    fontSize: 12,
-    letterSpacing: 0.6,
-    textTransform: 'uppercase',
-    color: colors.inkSoft,
-  },
-  button: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 8,
-    minHeight: 48,
-    paddingHorizontal: 18,
-    borderRadius: radius.pill,
-  },
-  buttonSecondary: { backgroundColor: colors.paper, borderWidth: 1, borderColor: colors.line },
-  buttonLabel: { fontFamily: fonts.semibold, fontSize: 15 },
-  buttonPrimary: {
-    backgroundColor: colors.accent,
-    shadowColor: colors.accent,
-    shadowOpacity: 0.25,
-    shadowRadius: 10,
-    shadowOffset: { width: 0, height: 4 },
-    elevation: 3,
-  },
-  iconButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: colors.paper,
-    borderWidth: 1,
-    borderColor: colors.line,
-  },
-  input: {
-    minHeight: 48,
-    paddingHorizontal: 14,
-    borderRadius: radius.md,
-    backgroundColor: colors.paper,
-    borderWidth: 1,
-    borderColor: colors.line,
-    fontFamily: fonts.regular,
-    fontSize: 15,
-    color: colors.ink,
-  },
-  row: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
-  swatchRing: { padding: 3, borderRadius: 20, borderWidth: 2, borderColor: 'transparent' },
-  swatch: { width: 28, height: 28, borderRadius: 14 },
-  emoji: {
-    width: 44,
-    height: 44,
-    borderRadius: radius.sm,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: colors.paper,
-    borderWidth: 1,
-    borderColor: colors.line,
-  },
-  emojiActive: { borderColor: colors.accent, borderWidth: 2, backgroundColor: tint(colors.accent, 0.9) },
-  segment: { flexDirection: 'row', padding: 3, borderRadius: radius.md, backgroundColor: colors.muted },
-  segmentItem: { flex: 1, alignItems: 'center', paddingVertical: 9, borderRadius: radius.sm },
-  segmentOn: {
-    backgroundColor: colors.paper,
-    shadowColor: '#000',
-    shadowOpacity: 0.06,
-    shadowRadius: 3,
-    shadowOffset: { width: 0, height: 1 },
-    elevation: 1,
-  },
-  segmentLabel: { fontFamily: fonts.medium, fontSize: 14, color: colors.inkSoft },
-  empty: { alignItems: 'center', justifyContent: 'center', gap: 10, paddingVertical: 36 },
-});
+const logo = require('../../assets/splash-icon.png');
+
+function PulsingLogo() {
+  const pulse = useSharedValue(1);
+  useEffect(() => {
+    pulse.value = withRepeat(withTiming(0.88, { duration: 700 }), -1, true);
+  }, [pulse]);
+  const style = useAnimatedStyle(() => ({ transform: [{ scale: pulse.value }], opacity: pulse.value }));
+  return (
+    <Animated.View style={style}>
+      <Image source={logo} style={{ width: 96, height: 96 }} contentFit="contain" accessibilityLabel={t('common.loading')} />
+    </Animated.View>
+  );
+}
+
+const styles = themed(() =>
+  StyleSheet.create({
+    screen: { flex: 1 },
+    // Pages centrées sur 760 px : pas d'étirement sur grand écran (même gabarit que l'accueil).
+    screenContent: { flex: 1, width: '100%', maxWidth: 760, alignSelf: 'center', paddingHorizontal: 20, paddingVertical: 16, gap: 16 },
+    scroll: { flexGrow: 1 },
+    card: { padding: 18, gap: 12, borderRadius: 24, backgroundColor: colors.paper, ...cardShadow },
+    sectionTitle: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 8 },
+    sectionTitleText: {
+      fontFamily: fonts.semibold,
+      fontSize: 12,
+      letterSpacing: 0.6,
+      textTransform: 'uppercase',
+      color: colors.inkSoft,
+    },
+    button: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      gap: 8,
+      minHeight: 48,
+      paddingHorizontal: 18,
+      borderRadius: radius.pill,
+    },
+    buttonSecondary: { backgroundColor: colors.paper, borderWidth: 1, borderColor: colors.line },
+    buttonLabel: { fontFamily: fonts.semibold, fontSize: 15 },
+    buttonPrimary: {
+      backgroundColor: colors.accent,
+      shadowColor: colors.accent,
+      shadowOpacity: 0.25,
+      shadowRadius: 10,
+      shadowOffset: { width: 0, height: 4 },
+      elevation: 3,
+    },
+    iconButton: {
+      width: 40,
+      height: 40,
+      borderRadius: 20,
+      alignItems: 'center',
+      justifyContent: 'center',
+      backgroundColor: colors.paper,
+      borderWidth: 1,
+      borderColor: colors.line,
+    },
+    input: {
+      minHeight: 48,
+      paddingHorizontal: 14,
+      borderRadius: radius.md,
+      backgroundColor: colors.paper,
+      borderWidth: 1,
+      borderColor: colors.line,
+      fontFamily: fonts.regular,
+      fontSize: 15,
+      color: colors.ink,
+    },
+    row: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
+    swatchRing: { padding: 3, borderRadius: 20, borderWidth: 2, borderColor: 'transparent' },
+    swatch: { width: 28, height: 28, borderRadius: 14 },
+    emoji: {
+      width: 44,
+      height: 44,
+      borderRadius: radius.sm,
+      alignItems: 'center',
+      justifyContent: 'center',
+      backgroundColor: colors.paper,
+      borderWidth: 1,
+      borderColor: colors.line,
+    },
+    emojiActive: { borderColor: colors.accent, borderWidth: 2, backgroundColor: tint(colors.accent, 0.9) },
+    segment: { flexDirection: 'row', padding: 3, borderRadius: radius.md, backgroundColor: colors.muted },
+    segmentItem: { flex: 1, alignItems: 'center', paddingVertical: 9, borderRadius: radius.sm },
+    segmentOn: {
+      backgroundColor: colors.paper,
+      shadowColor: '#000',
+      shadowOpacity: 0.06,
+      shadowRadius: 3,
+      shadowOffset: { width: 0, height: 1 },
+      elevation: 1,
+    },
+    segmentLabel: { fontFamily: fonts.medium, fontSize: 14, color: colors.inkSoft },
+    empty: { alignItems: 'center', justifyContent: 'center', gap: 10, paddingVertical: 36 },
+  }),
+);

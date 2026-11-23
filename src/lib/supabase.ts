@@ -16,7 +16,7 @@ export const supabase = createClient(url, anonKey, {
     storage: AsyncStorage,
     autoRefreshToken: true,
     persistSession: true,
-    // Le lien magique est traité explicitement par src/app/auth/callback.tsx.
+    // Les liens des emails sont traités explicitement par src/app/auth/callback.tsx et reset-password.tsx.
     detectSessionInUrl: false,
     flowType: 'pkce',
   },

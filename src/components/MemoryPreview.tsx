@@ -3,7 +3,7 @@ import { Link } from 'expo-router';
 import { Pressable, StyleSheet, View } from 'react-native';
 
 import { formatDateRange, t } from '@/lib/i18n';
-import { colors, radius, shade, tint } from '@/lib/theme';
+import { colors, radius, shade, themed, tint } from '@/lib/theme';
 import type { MemorySummary } from '@/lib/types';
 
 import { colorFor } from './Memories';
@@ -68,39 +68,41 @@ export function MemoryPreview({
   );
 }
 
-const styles = StyleSheet.create({
-  sheet: {
-    position: 'absolute',
-    left: 0,
-    right: 0,
-    bottom: 0,
-    paddingTop: 10,
-    paddingHorizontal: 20,
-    gap: 12,
-    backgroundColor: colors.paper,
-    borderTopLeftRadius: radius.lg + 8,
-    borderTopRightRadius: radius.lg + 8,
-    shadowColor: '#000',
-    shadowOpacity: 0.08,
-    shadowRadius: 20,
-    shadowOffset: { width: 0, height: -6 },
-    elevation: 12,
-  },
-  handle: { alignSelf: 'center', width: 40, height: 4, borderRadius: 2, backgroundColor: colors.line },
-  strip: { flexDirection: 'row', gap: 6 },
-  photo: { flex: 1, height: 90, borderRadius: radius.md },
-  body: { flexDirection: 'row', alignItems: 'flex-end', gap: 12 },
-  chips: { flexDirection: 'row', flexWrap: 'wrap', gap: 6 },
-  open: { width: 44, height: 44, borderRadius: 22, alignItems: 'center', justifyContent: 'center' },
-  close: {
-    position: 'absolute',
-    top: 14,
-    right: 16,
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: colors.paper,
-  },
-});
+const styles = themed(() =>
+  StyleSheet.create({
+    sheet: {
+      position: 'absolute',
+      left: 0,
+      right: 0,
+      bottom: 0,
+      paddingTop: 10,
+      paddingHorizontal: 20,
+      gap: 12,
+      backgroundColor: colors.paper,
+      borderTopLeftRadius: radius.lg + 8,
+      borderTopRightRadius: radius.lg + 8,
+      shadowColor: '#000',
+      shadowOpacity: 0.08,
+      shadowRadius: 20,
+      shadowOffset: { width: 0, height: -6 },
+      elevation: 12,
+    },
+    handle: { alignSelf: 'center', width: 40, height: 4, borderRadius: 2, backgroundColor: colors.line },
+    strip: { flexDirection: 'row', gap: 6 },
+    photo: { flex: 1, height: 90, borderRadius: radius.md },
+    body: { flexDirection: 'row', alignItems: 'flex-end', gap: 12 },
+    chips: { flexDirection: 'row', flexWrap: 'wrap', gap: 6 },
+    open: { width: 44, height: 44, borderRadius: 22, alignItems: 'center', justifyContent: 'center' },
+    close: {
+      position: 'absolute',
+      top: 14,
+      right: 16,
+      width: 32,
+      height: 32,
+      borderRadius: 16,
+      alignItems: 'center',
+      justifyContent: 'center',
+      backgroundColor: colors.paper,
+    },
+  }),
+);

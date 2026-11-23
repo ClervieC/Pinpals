@@ -1,0 +1,6 @@
+/* Le navigateur (Edge, Chrome sous Windows) ajoute son propre œil sur les champs
+   mot de passe : on le masque, l'app a déjà son bouton « Afficher / Masquer ». */
+input::-ms-reveal,
+input::-ms-clear {
+  display: none;
+}

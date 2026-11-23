@@ -5,7 +5,7 @@ import { Pressable, StyleSheet, View } from 'react-native';
 import { countryFlag } from '@/lib/geo';
 import { t } from '@/lib/i18n';
 import { useFriends, useGroupMembers, useMyGroups } from '@/lib/queries';
-import { colors, fonts, radius, tint } from '@/lib/theme';
+import { colors, fonts, radius, themed, tint } from '@/lib/theme';
 import type { Memory, MemoryInput, MemoryKind, MemoryStop } from '@/lib/types';
 
 import { CitySearch } from './CitySearch';
@@ -238,62 +238,64 @@ export function MemoryForm({ initial, defaultGroupId, defaultPeople, submitLabel
   );
 }
 
-const styles = StyleSheet.create({
-  chips: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
-  stop: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 6 },
-  stopDot: {
-    width: 26,
-    height: 26,
-    borderRadius: 13,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: colors.accent,
-  },
-  stopNumber: { color: colors.onAccent, fontFamily: fonts.bold, fontSize: 12 },
-  // Trait pointillé entre deux étapes d'un voyage.
-  stopLine: {
-    position: 'absolute',
-    left: 12,
-    top: 32,
-    height: 20,
-    borderLeftWidth: 2,
-    borderStyle: 'dashed',
-    borderColor: colors.accent,
-  },
-  photos: { flexDirection: 'row', flexWrap: 'wrap', marginHorizontal: -4 },
-  photoCell: { width: '25%', padding: 4 },
-  photo: { width: '100%', aspectRatio: 1, borderRadius: radius.sm },
-  addTile: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 2,
-    borderWidth: 1.5,
-    borderStyle: 'dashed',
-    borderColor: tint(colors.accent, 0.4),
-    backgroundColor: tint(colors.accent, 0.92),
-  },
-  remove: {
-    position: 'absolute',
-    top: 8,
-    right: 8,
-    width: 22,
-    height: 22,
-    borderRadius: 11,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: 'rgba(0,0,0,0.55)',
-  },
-  chip: {
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    borderRadius: radius.pill,
-    borderWidth: 1,
-    borderColor: colors.line,
-    backgroundColor: colors.paper,
-  },
-  chipOn: { borderColor: colors.accent, backgroundColor: tint(colors.accent, 0.9) },
-  chipText: { fontFamily: fonts.medium, fontSize: 14 },
-});
+const styles = themed(() =>
+  StyleSheet.create({
+    chips: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
+    stop: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 6 },
+    stopDot: {
+      width: 26,
+      height: 26,
+      borderRadius: 13,
+      alignItems: 'center',
+      justifyContent: 'center',
+      backgroundColor: colors.accent,
+    },
+    stopNumber: { color: colors.onAccent, fontFamily: fonts.bold, fontSize: 12 },
+    // Trait pointillé entre deux étapes d'un voyage.
+    stopLine: {
+      position: 'absolute',
+      left: 12,
+      top: 32,
+      height: 20,
+      borderLeftWidth: 2,
+      borderStyle: 'dashed',
+      borderColor: colors.accent,
+    },
+    photos: { flexDirection: 'row', flexWrap: 'wrap', marginHorizontal: -4 },
+    photoCell: { width: '25%', padding: 4 },
+    photo: { width: '100%', aspectRatio: 1, borderRadius: radius.sm },
+    addTile: {
+      alignItems: 'center',
+      justifyContent: 'center',
+      gap: 2,
+      borderWidth: 1.5,
+      borderStyle: 'dashed',
+      borderColor: tint(colors.accent, 0.4),
+      backgroundColor: tint(colors.accent, 0.92),
+    },
+    remove: {
+      position: 'absolute',
+      top: 8,
+      right: 8,
+      width: 22,
+      height: 22,
+      borderRadius: 11,
+      alignItems: 'center',
+      justifyContent: 'center',
+      backgroundColor: 'rgba(0,0,0,0.55)',
+    },
+    chip: {
+      paddingHorizontal: 12,
+      paddingVertical: 8,
+      borderRadius: radius.pill,
+      borderWidth: 1,
+      borderColor: colors.line,
+      backgroundColor: colors.paper,
+    },
+    chipOn: { borderColor: colors.accent, backgroundColor: tint(colors.accent, 0.9) },
+    chipText: { fontFamily: fonts.medium, fontSize: 14 },
+  }),
+);
 
 /** Un souvenir n'a qu'une ville ; si on repasse de « voyage » à « souvenir », on garde la première. */
 function stopsFor(kind: MemoryKind, stops: MemoryStop[]): MemoryStop[] {

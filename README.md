@@ -31,13 +31,13 @@ Sans `EXPO_PUBLIC_MAPTILER_KEY`, la carte utilise les tuiles démo de MapLibre (
 
 1. **Migrations.** Applique [supabase/migrations](supabase/migrations) avec `supabase db push --db-url …` ou `psql`. Pour un restore, passe par `supabase_admin`.
 2. **Tester les règles RLS.** `npm run test:db` rejoue les migrations dans un Postgres embarqué (PGlite) et vérifie ~40 scénarios : visibilité entre membres, join par code, rôles admin, dossier des avatars…
-3. **Auth → URL Configuration.** Ajoute les redirect URLs :
-   - `pinpals://auth/callback`
-   - `https://pinpals.app/auth/callback` (web)
-   - `http://localhost:8081/auth/callback` (dev web)
+3. **Auth → URL Configuration.** Ajoute les redirect URLs (confirmation d'inscription et reset du mot de passe) :
+   - `pinpals://auth/callback` et `pinpals://auth/reset-password`
+   - `https://pinpals.app/auth/callback` et `https://pinpals.app/auth/reset-password` (web)
+   - `http://localhost:8081/auth/callback` et `http://localhost:8081/auth/reset-password` (dev web)
 
    Sur le self-hosted, c'est `ADDITIONAL_REDIRECT_URLS` dans le `.env` de Docker.
-4. **Connexion email + mot de passe.** Dans Authentication → Sign In / Providers → Email, vérifie que la longueur minimale du mot de passe est à 6 (comme l'app, valeur par défaut de Supabase). Si « Confirm email » est activé, l'inscription envoie un lien de confirmation qui revient sur `/auth/callback` : les redirect URLs ci-dessus doivent donc être en place. En dev, tu peux désactiver « Confirm email » pour être connecté dès l'inscription.
+4. **Connexion email + mot de passe.** Dans Authentication → Sign In / Providers → Email, vérifie que la longueur minimale du mot de passe est à 6 (comme l'app, valeur par défaut de Supabase). Si « Confirm email » est activé, l'inscription envoie un lien de confirmation qui revient sur `/auth/callback` : les redirect URLs ci-dessus doivent donc être en place. En dev, tu peux désactiver « Confirm email » pour être connecté dès l'inscription. Sur le self-hosted : `ENABLE_EMAIL_AUTOCONFIRM` (« Confirm email ») et `PASSWORD_MIN_LENGTH=6` dans le `.env` de Docker. Le lien « mot de passe oublié » revient sur `/auth/reset-password`.
 
 ## Liens d'invitation
 
@@ -49,14 +49,14 @@ Pour que le lien https ouvre l'app plutôt que le site, il reste à faire :
 - héberger le build web (`npx expo export -p web`) avec une réécriture de toutes les routes vers `index.html`, pour que `/join/CODE` fonctionne dans un navigateur ;
 - servir `/.well-known/apple-app-site-association` (iOS) et `/.well-known/assetlinks.json` (Android) sur `pinpals.app`. Les `associatedDomains` et `intentFilters` sont déjà dans [app.json](app.json).
 
-L'écran [join/[code]](src/app/join/[code].tsx) marche même sans compte. Il affiche un aperçu du groupe, garde le code pendant l'inscription, puis rejoint le groupe une fois l'onboarding terminé.
+L'écran [join/[code]](src/app/join/[code].tsx) s'ouvre même sans être connecté : il affiche un aperçu du groupe, mais il faut un compte pour rejoindre. Sans session, le code est gardé, l'utilisateur crée son compte (ou se connecte), et le groupe est rejoint automatiquement une fois l'onboarding terminé.
 
 ## Structure
 
 ```
 src/app/
   _layout.tsx               gardes : non connecté → (auth), sans ville → (onboarding), sinon (app)
-  (auth)/sign-in.tsx        connexion / inscription email + mot de passe
+  (auth)/sign-in.tsx        connexion / inscription email + mot de passe, mot de passe oublié
   (onboarding)/profile.tsx  nom, avatar, couleur du pin
   (onboarding)/location.tsx ville (Photon)
   (app)/index.tsx           mes groupes
@@ -66,6 +66,8 @@ src/app/
   (app)/me.tsx              profil complet, déménagement, déconnexion
   join/[code].tsx           invitation (accessible sans compte)
   auth/callback.tsx         retour du lien de confirmation d'email (PKCE)
+  auth/reset-password.tsx   nouveau mot de passe (PKCE)
+  legal/privacy.tsx, terms.tsx  confidentialité, conditions d'utilisation
 src/components/map/         GroupMap.native / GroupMap.web, pins, clusters, style pastel
 src/lib/                    client Supabase, requêtes TanStack, géocodage, thème
 supabase/migrations/        schéma, RLS, RPC, bucket avatars

@@ -1,6 +1,6 @@
 import { View } from 'react-native';
 
-import { lang, t } from '@/lib/i18n';
+import { t } from '@/lib/i18n';
 
 import { Field, T } from './ui';
 
@@ -78,7 +78,8 @@ export function DateField({ label, value, onChange, yearOptional = false }: Prop
     <View style={{ gap: 6 }}>
       <T variant="label">{label}</T>
       <View style={{ flexDirection: 'row', gap: 8, alignItems: 'center' }}>
-        {lang === 'fr' ? [day, month] : [month, day]}
+        {/* Toujours jour, mois, année. */}
+        {[day, month]}
         <Field
           value={value.year}
           onChangeText={(v) => onChange({ ...value, year: v.replace(/\D/g, '') })}

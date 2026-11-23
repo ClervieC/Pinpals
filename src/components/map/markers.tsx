@@ -84,10 +84,13 @@ export function useGroupMarkers(props: GroupMapProps, zoom: number): { markers: 
 }
 
 /** Où recentrer la caméra quand la sélection change (ami·e ou souvenir). */
+/** Zoom sur un·e ami·e sélectionné·e : niveau ville (le pin est déjà décalé d'~1 km côté serveur). */
+export const FRIEND_ZOOM = 10;
+
 export function focusTarget(props: GroupMapProps, zoom: number): { center: [number, number]; zoom: number } | null {
   if (props.layer === 'friends') {
     const m = props.selectedId ? props.members.find((x) => x.id === props.selectedId) : null;
-    return m ? { center: [m.lng, m.lat], zoom: Math.max(zoom, 6) } : null;
+    return m ? { center: [m.lng, m.lat], zoom: Math.max(zoom, FRIEND_ZOOM) } : null;
   }
   const memory = props.memories.find((x) => x.id === props.selectedMemoryId);
   if (!memory || memory.stops.length === 0) return null;

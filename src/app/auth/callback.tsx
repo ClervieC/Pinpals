@@ -1,10 +1,11 @@
 import { router, useLocalSearchParams } from 'expo-router';
 import { useEffect, useState } from 'react';
-import { View } from 'react-native';
 
-import { Button, ErrorText, Loading, Screen, T } from '@/components/ui';
+import { AuthMessage } from '@/components/AuthMessage';
+import { Button, ErrorText, Loading, T } from '@/components/ui';
 import { t } from '@/lib/i18n';
 import { supabase } from '@/lib/supabase';
+import { colors } from '@/lib/theme';
 
 /** Retour du lien de confirmation d'email (flow PKCE) : pinpals://auth/callback?code=… */
 export default function AuthCallback() {
@@ -23,13 +24,10 @@ export default function AuthCallback() {
   if (!error) return <Loading />;
 
   return (
-    <Screen>
-      <View style={{ flex: 1, justifyContent: 'center', gap: 16 }}>
-        <T variant="title">{t('callback.title')}</T>
-        <ErrorText error={error} />
-        <T>{t('callback.body')}</T>
-        <Button label={t('callback.back')} onPress={() => router.replace('/sign-in')} />
-      </View>
-    </Screen>
+    <AuthMessage title={t('callback.title')}>
+      <ErrorText error={error} />
+      <T style={{ color: colors.inkSoft }}>{t('callback.body')}</T>
+      <Button label={t('callback.back')} onPress={() => router.replace('/sign-in')} />
+    </AuthMessage>
   );
 }

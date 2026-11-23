@@ -5,7 +5,7 @@ import { ActivityIndicator, Pressable, StyleSheet, View } from 'react-native';
 import { useUserId } from '@/lib/auth';
 import { t } from '@/lib/i18n';
 import { uploadAvatar } from '@/lib/queries';
-import { colors } from '@/lib/theme';
+import { colors, themed } from '@/lib/theme';
 
 import { Avatar } from './Avatar';
 import { ErrorText, Icon } from './ui';
@@ -59,19 +59,21 @@ export function AvatarPicker({ name, url, color, onChange }: Props) {
   );
 }
 
-const styles = StyleSheet.create({
-  wrap: { alignItems: 'center', gap: 8 },
-  badge: {
-    position: 'absolute',
-    right: 0,
-    bottom: 0,
-    width: 34,
-    height: 34,
-    borderRadius: 17,
-    backgroundColor: colors.paper,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderWidth: 1,
-    borderColor: colors.line,
-  },
-});
+const styles = themed(() =>
+  StyleSheet.create({
+    wrap: { alignItems: 'center', gap: 8 },
+    badge: {
+      position: 'absolute',
+      right: 0,
+      bottom: 0,
+      width: 34,
+      height: 34,
+      borderRadius: 17,
+      backgroundColor: colors.paper,
+      alignItems: 'center',
+      justifyContent: 'center',
+      borderWidth: 1,
+      borderColor: colors.line,
+    },
+  }),
+);

@@ -1,12 +1,20 @@
 import { getLocales } from 'expo-localization';
 
 /**
- * Traductions FR / EN. La langue suit celle de l'appareil au lancement :
- * français si l'appareil est en français, anglais sinon.
+ * Traductions FR / EN. Par défaut, la langue de l'appareil (français si l'appareil est en
+ * français, anglais sinon) ; modifiable dans « Mon profil » (voir lib/prefs.ts).
  */
 export type Lang = 'fr' | 'en';
 
-export const lang: Lang = getLocales()[0]?.languageCode === 'fr' ? 'fr' : 'en';
+/** Langue de l'appareil : la valeur par défaut tant qu'aucune n'a été choisie dans les réglages. */
+export const deviceLang: Lang = getLocales()[0]?.languageCode === 'fr' ? 'fr' : 'en';
+
+/** Langue active. `let` exporté : les imports voient la nouvelle valeur après setLang(). */
+export let lang: Lang = deviceLang;
+
+export function setLang(next: Lang) {
+  lang = next;
+}
 
 const fr = {
   // Connexion
@@ -34,6 +42,33 @@ const fr = {
   'callback.invalid': 'Lien invalide ou expiré.',
   'callback.body': 'Le lien a peut-être déjà servi ou expiré. Tu peux quand même essayer de te connecter avec ton mot de passe.',
   'callback.back': 'Revenir à la connexion',
+  'common.loading': 'Chargement',
+  'auth.password.show': 'Afficher',
+  'auth.password.hide': 'Masquer',
+  'auth.password.ok': 'Parfait 👌',
+  'auth.password.left_one': 'Encore 1 caractère',
+  'auth.password.left_other': 'Encore {count} caractères',
+  'auth.error.samePassword': "C'est déjà ton mot de passe actuel.",
+  'auth.forgot.link': 'Mot de passe oublié ?',
+  'auth.forgot.title': 'Mot de passe oublié ?',
+  'auth.forgot.body': "Pas de panique, on t'envoie un lien pour en choisir un nouveau.",
+  'auth.forgot.submit': 'Recevoir le lien',
+  'auth.forgot.sentTitle': 'Regarde tes mails',
+  'auth.forgot.sentBody': 'On a envoyé un lien pour changer ton mot de passe à {email}. Ouvre-le sur cet appareil.',
+  'auth.privacyNote': 'Sur la carte, seulement ta ville : jamais ta position exacte.',
+  'auth.legal.signUp': 'En créant ton compte, tu acceptes les ',
+  'auth.legal.signIn': 'Consulte nos ',
+  'auth.legal.terms': "conditions d'utilisation",
+  'auth.legal.and': ' et la ',
+  'auth.legal.privacy': 'politique de confidentialité',
+  'reset.title': 'Nouveau mot de passe',
+  'reset.body': "Choisis-en un que tu n'oublieras pas cette fois 😉",
+  'reset.linkBody': "Le lien doit être ouvert sur l'appareil où tu l'as demandé, et il n'est valable qu'une fois.",
+  'legal.privacy.title': 'Confidentialité',
+  'legal.terms.title': "Conditions d'utilisation",
+  'legal.updated': 'Dernière mise à jour : 16 novembre 2026',
+  'join.notFoundBody': "Vérifie le lien, ou demande à ton ami de t'en renvoyer un nouveau.",
+  'join.needAccount': 'Il faut un compte Pinpals pour voir la carte du groupe.',
 
   // Onboarding
   'onboarding.profile.title': 'Enchanté·e',
@@ -141,6 +176,8 @@ const fr = {
 
   // Card membre
   'member.livesSince': 'à {city} depuis {date}',
+  'member.since': 'depuis {date}',
+  'member.you': "C'est toi",
 
   // Erreurs renvoyées par les RPC Supabase (messages en français côté SQL)
   'server.invalidCoords': 'Coordonnées invalides',
@@ -168,6 +205,19 @@ const fr = {
   'profile.section.cardHint': 'Visible par les membres de tes groupes. Tout est optionnel.',
   'profile.section.more': 'Boulot, bio et réseaux',
   'profile.favorites': 'Tes choses préférées',
+  'profile.favoritesHint': 'Écris juste ta réponse : « pizza », pas « plat : pizza ».',
+  'notes.kind.note': 'Note',
+  'notes.kind.gift': 'Idée cadeau',
+  'notes.kind.address': 'Adresse',
+  'notes.placeholder.note': 'Prénom de son chat, allergies, ce qui compte pour lui…',
+  'notes.placeholder.gift': 'Ce livre dont elle a parlé, une plante…',
+  'notes.placeholder.address': '12 rue des Lilas, 44000 Nantes — code 1234B',
+  'notes.addressHint': "Rien que pour toi : ton ami·e ne la voit pas, et elle n'apparaît pas sur la carte.",
+  'notes.add': 'Ajouter une note',
+  'notes.empty': 'Aucune note pour le moment. Idées cadeaux, adresse, petits détails à retenir…',
+  'notes.edit': 'Modifier la note',
+  'notes.delete': 'Supprimer la note',
+  'notes.deleteConfirm': 'Supprimer ?',
   'profile.wishlist': 'Tes envies (idées cadeaux)',
   'profile.wishlistPlaceholder': 'Un vinyle de Daft Punk, des plantes, un cours de poterie…',
   'fav.food': 'Plat',
@@ -285,6 +335,33 @@ const fr = {
   'memory.deletePhoto': 'Supprimer cette photo',
   'memory.delete': 'Supprimer le souvenir',
   'memory.deleteConfirm': 'Sûr·e ? Touche encore pour supprimer',
+  'memories.addShort': 'Ajouter',
+  'prefs.title': 'Préférences',
+  'prefs.language': 'Langue',
+  'prefs.theme': 'Apparence',
+  'prefs.theme.system': 'Auto',
+  'prefs.theme.light': 'Clair',
+  'prefs.theme.dark': 'Sombre',
+  'photo.open': 'Voir la photo en grand',
+  'photo.previous': 'Photo précédente',
+  'photo.next': 'Photo suivante',
+  'photo.like': "J'aime",
+  'photo.unlike': "Je n'aime plus",
+  'photo.noDate': 'Pas de date',
+  'photo.edit': 'Date et légende',
+  'photo.date': 'Date de la photo',
+  'photo.caption': 'Légende',
+  'photo.captionPlaceholder': 'Le moment, la blague, qui est dessus…',
+  'comments.title': 'Commentaires ({count})',
+  'comments.empty': 'Pas encore de commentaire. Lance la conversation !',
+  'comments.placeholder': 'Écris un commentaire…',
+  'comments.send': 'Envoyer',
+  'comments.delete': 'Supprimer le commentaire',
+  'comments.someone': 'Quelqu’un',
+  'time.now': "à l'instant",
+  'time.minutes': 'il y a {count} min',
+  'time.hours': 'il y a {count} h',
+  'time.days': 'il y a {count} j',
   'server.notInGroup': 'Cette personne ne fait pas partie du groupe',
   'server.unknownPerson': 'Tu ne peux choisir que des membres de tes groupes',
   'server.membersOnly': 'Réservé aux membres du groupe',
@@ -319,6 +396,33 @@ const en: Record<Key, string> = {
   'callback.invalid': 'Invalid or expired link.',
   'callback.body': 'This link may have already been used or expired. You can still try signing in with your password.',
   'callback.back': 'Back to sign in',
+  'common.loading': 'Loading',
+  'auth.password.show': 'Show',
+  'auth.password.hide': 'Hide',
+  'auth.password.ok': 'Perfect 👌',
+  'auth.password.left_one': '1 more character',
+  'auth.password.left_other': '{count} more characters',
+  'auth.error.samePassword': "That's already your current password.",
+  'auth.forgot.link': 'Forgot password?',
+  'auth.forgot.title': 'Forgot your password?',
+  'auth.forgot.body': "No worries, we'll send you a link to choose a new one.",
+  'auth.forgot.submit': 'Send me the link',
+  'auth.forgot.sentTitle': 'Check your inbox',
+  'auth.forgot.sentBody': 'We sent a link to reset your password to {email}. Open it on this device.',
+  'auth.privacyNote': 'On the map, only your city: never your exact location.',
+  'auth.legal.signUp': 'By creating your account, you accept the ',
+  'auth.legal.signIn': 'Read our ',
+  'auth.legal.terms': 'terms of use',
+  'auth.legal.and': ' and ',
+  'auth.legal.privacy': 'privacy policy',
+  'reset.title': 'New password',
+  'reset.body': "Pick one you won't forget this time 😉",
+  'reset.linkBody': 'The link must be opened on the device where you requested it, and it only works once.',
+  'legal.privacy.title': 'Privacy',
+  'legal.terms.title': 'Terms of use',
+  'legal.updated': 'Last updated: November 16, 2026',
+  'join.notFoundBody': 'Check the link, or ask your friend to send you a new one.',
+  'join.needAccount': 'You need a Pinpals account to see the group map.',
 
   'onboarding.profile.title': 'Nice to meet you',
   'onboarding.profile.body': 'Pick your photo and your pin color. This is how your friends will see you on the map.',
@@ -416,6 +520,8 @@ const en: Record<Key, string> = {
   'join.join': 'Join the group',
 
   'member.livesSince': 'in {city} since {date}',
+  'member.since': 'since {date}',
+  'member.you': "That's you",
 
   'server.invalidCoords': 'Invalid coordinates',
   'server.profileNotFound': 'Profile not found',
@@ -439,6 +545,19 @@ const en: Record<Key, string> = {
   'profile.section.cardHint': 'Visible to members of your groups. Everything is optional.',
   'profile.section.more': 'Work, bio and socials',
   'profile.favorites': 'Your favorite things',
+  'profile.favoritesHint': 'Just write your answer: "pizza", not "food: pizza".',
+  'notes.kind.note': 'Note',
+  'notes.kind.gift': 'Gift idea',
+  'notes.kind.address': 'Address',
+  'notes.placeholder.note': "Their cat's name, allergies, what matters to them…",
+  'notes.placeholder.gift': 'That book they mentioned, a plant…',
+  'notes.placeholder.address': '12 Lilac Street, London — door code 1234B',
+  'notes.addressHint': "Just for you: your friend can't see it, and it never shows on the map.",
+  'notes.add': 'Add a note',
+  'notes.empty': 'No notes yet. Gift ideas, an address, little things to remember…',
+  'notes.edit': 'Edit note',
+  'notes.delete': 'Delete note',
+  'notes.deleteConfirm': 'Delete?',
   'profile.wishlist': 'Your wishlist (gift ideas)',
   'profile.wishlistPlaceholder': 'A Daft Punk vinyl, plants, a pottery class…',
   'fav.food': 'Food',
@@ -553,6 +672,33 @@ const en: Record<Key, string> = {
   'memory.deletePhoto': 'Delete this photo',
   'memory.delete': 'Delete memory',
   'memory.deleteConfirm': 'Sure? Tap again to delete',
+  'memories.addShort': 'Add',
+  'prefs.title': 'Preferences',
+  'prefs.language': 'Language',
+  'prefs.theme': 'Appearance',
+  'prefs.theme.system': 'Auto',
+  'prefs.theme.light': 'Light',
+  'prefs.theme.dark': 'Dark',
+  'photo.open': 'View photo full size',
+  'photo.previous': 'Previous photo',
+  'photo.next': 'Next photo',
+  'photo.like': 'Like',
+  'photo.unlike': 'Unlike',
+  'photo.noDate': 'No date',
+  'photo.edit': 'Date & caption',
+  'photo.date': 'Photo date',
+  'photo.caption': 'Caption',
+  'photo.captionPlaceholder': "The moment, the joke, who's in it…",
+  'comments.title': 'Comments ({count})',
+  'comments.empty': 'No comments yet. Start the conversation!',
+  'comments.placeholder': 'Write a comment…',
+  'comments.send': 'Send',
+  'comments.delete': 'Delete comment',
+  'comments.someone': 'Someone',
+  'time.now': 'just now',
+  'time.minutes': '{count} min ago',
+  'time.hours': '{count} h ago',
+  'time.days': '{count} d ago',
   'server.notInGroup': "This person isn't in the group",
   'server.unknownPerson': 'You can only pick members of your groups',
   'server.membersOnly': 'Group members only',
@@ -604,19 +750,35 @@ export function monthName(month: number): string {
 
 /** "12 mars" / "March 12" */
 export function formatDayMonth(day: number, month: number): string {
-  return lang === 'fr' ? `${day === 1 ? '1er' : day} ${monthName(month - 1)}` : `${monthName(month - 1)} ${day}`;
+  // Jour puis mois dans les deux langues : « 1er juillet », « 1 July ».
+  return lang === 'fr' ? `${day === 1 ? '1er' : day} ${monthName(month - 1)}` : `${day} ${monthName(month - 1)}`;
 }
 
-/** "2025-07-01" -> "1er juillet 2025" / "July 1, 2025" */
+/** "2025-07-01" -> "1er juillet 2025" / "1 July 2025" (jour, mois, année). */
 export function formatDate(iso: string): string {
   const [y, m, d] = iso.slice(0, 10).split('-').map(Number);
-  return lang === 'fr' ? `${formatDayMonth(d, m)} ${y}` : `${formatDayMonth(d, m)}, ${y}`;
+  return `${formatDayMonth(d, m)} ${y}`;
+}
+
+/** Date relative courte pour les commentaires : « il y a 5 min », puis la date au-delà d'une semaine. */
+export function timeAgo(iso: string, now = Date.now()): string {
+  const minutes = Math.floor((now - new Date(iso).getTime()) / 60_000);
+  if (minutes < 1) return t('time.now');
+  if (minutes < 60) return t('time.minutes', { count: minutes });
+  if (minutes < 24 * 60) return t('time.hours', { count: Math.floor(minutes / 60) });
+  if (minutes < 7 * 24 * 60) return t('time.days', { count: Math.floor(minutes / (24 * 60)) });
+  return formatDate(iso);
 }
 
 /** Période d'un voyage : "1er – 10 juillet 2025", ou une seule date. */
 export function formatDateRange(start: string | null, end: string | null): string | null {
   if (!start) return null;
   if (!end || end.slice(0, 10) === start.slice(0, 10)) return formatDate(start);
+  // Même année : on ne l'écrit qu'une fois (« 2 mai – 2 octobre 2025 »), plus court dans les pastilles.
+  if (start.slice(0, 4) === end.slice(0, 4)) {
+    const [, sm, sd] = start.slice(0, 10).split('-').map(Number);
+    return `${formatDayMonth(sd, sm)} – ${formatDate(end)}`;
+  }
   return `${formatDate(start)} – ${formatDate(end)}`;
 }
 

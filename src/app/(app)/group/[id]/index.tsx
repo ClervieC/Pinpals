@@ -15,10 +15,10 @@ import { Button, ErrorText, Icon, Loading, T } from '@/components/ui';
 import { t, tn } from '@/lib/i18n';
 import { useGroup, useGroupMap, useMemories, useSignedUrls } from '@/lib/queries';
 import type { MapMember } from '@/lib/types';
-import { colors, fonts, radius, tint } from '@/lib/theme';
+import { colors, fonts, radius, themed, tint } from '@/lib/theme';
 
-const HEADER_HEIGHT = 64;
-const LAYER_HEIGHT = 52;
+/** Hauteur de la carte flottante du haut (titre + onglets), pour décaler la carte en dessous. */
+const TOOLBAR_HEIGHT = 112;
 
 export default function GroupMapScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -89,56 +89,70 @@ export default function GroupMapScreen() {
         memories={mapMemories}
         selectedMemoryId={selectedMemoryId}
         onSelectMemory={setSelectedMemoryId}
-        topInset={insets.top + HEADER_HEIGHT + LAYER_HEIGHT}
+        topInset={insets.top + 16 + TOOLBAR_HEIGHT}
         bottomInset={selectedId || selectedMemoryId ? SHEET_HEIGHT : 0}
       />
 
-      {/* Header flottant au-dessus de la carte. */}
-      <View style={[styles.header, { top: insets.top + 8 }]} pointerEvents="box-none">
-        <Pressable onPress={() => (router.canGoBack() ? router.back() : router.replace('/'))} style={styles.round}>
-          <Icon name="chevron-left" size={22} />
-        </Pressable>
-        <View style={styles.title}>
-          <View style={[styles.emojiTile, { backgroundColor: tint(g.color, 0.7) }]}>
-            <T style={{ fontSize: 18 }}>{g.emoji}</T>
+      {/* Une seule carte flottante : titre du groupe, actions, puis choix du calque. */}
+      <View style={[styles.toolbarWrap, { top: insets.top + 8 }]} pointerEvents="box-none">
+        <View style={styles.toolbar}>
+          <View style={styles.row}>
+            <Pressable
+              onPress={() => (router.canGoBack() ? router.back() : router.replace('/'))}
+              accessibilityLabel={t('common.back')}
+              style={({ pressed }) => [styles.round, pressed && { opacity: 0.7 }]}
+            >
+              <Icon name="chevron-left" size={22} />
+            </Pressable>
+            <View style={[styles.emojiTile, { backgroundColor: tint(g.color, 0.65) }]}>
+              <T style={{ fontSize: 20 }}>{g.emoji}</T>
+            </View>
+            <View style={{ flex: 1, gap: 2 }}>
+              <T style={{ fontFamily: fonts.display, fontSize: 17 }} numberOfLines={1}>
+                {g.name}
+              </T>
+              <View
+                style={styles.meta}
+                accessible
+                accessibilityLabel={`${t('group.onMap', { count: members.length })} · ${tn('common.members', g.member_count)}`}
+              >
+                <Icon name="map-pin" size={12} color={colors.inkSoft} />
+                <T variant="caption">{members.length}</T>
+                <T variant="caption">·</T>
+                <Icon name="users" size={12} color={colors.inkSoft} />
+                <T variant="caption">{g.member_count}</T>
+              </View>
+            </View>
+            <Link href={{ pathname: '/group/[id]/memories', params: { id } }} asChild>
+              <Pressable style={styles.round} accessibilityLabel={t('memories.groupTitle')}>
+                <Icon name="book-open" size={18} />
+              </Pressable>
+            </Link>
+            <Link href={{ pathname: '/group/[id]/settings', params: { id } }} asChild>
+              <Pressable style={styles.round} accessibilityLabel={t('settings.title')}>
+                <Icon name="settings" size={18} />
+              </Pressable>
+            </Link>
           </View>
-          <View style={{ flexShrink: 1 }}>
-            <T style={{ fontFamily: fonts.display, fontSize: 16 }} numberOfLines={1}>
-              {g.name}
-            </T>
-            <T style={{ fontFamily: fonts.regular, fontSize: 12, color: colors.inkSoft }}>
-              {t('group.onMap', { count: members.length })} · {tn('common.members', g.member_count)}
-            </T>
+
+          {/* Calque : ami·es ou souvenirs. */}
+          <View style={styles.layers}>
+            {(['friends', 'memories'] as const).map((l) => (
+              <Pressable
+                key={l}
+                onPress={() => switchLayer(l)}
+                accessibilityRole="button"
+                accessibilityState={{ selected: layer === l }}
+                style={[styles.layer, layer === l && styles.layerOn]}
+              >
+                <Icon name={l === 'friends' ? 'users' : 'camera'} size={15} color={layer === l ? colors.onAccent : colors.inkSoft} />
+                <T style={[styles.layerText, layer === l && { color: colors.onAccent }]}>
+                  {l === 'friends' ? t('map.layer.friends') : t('map.layer.memories')}
+                </T>
+              </Pressable>
+            ))}
           </View>
         </View>
-        <Link href={{ pathname: '/group/[id]/memories', params: { id } }} asChild>
-          <Pressable style={styles.round} accessibilityLabel={t('memories.groupTitle')}>
-            <Icon name="book-open" size={19} />
-          </Pressable>
-        </Link>
-        <Link href={{ pathname: '/group/[id]/settings', params: { id } }} asChild>
-          <Pressable style={styles.round} accessibilityLabel={t('settings.title')}>
-            <Icon name="settings" size={19} />
-          </Pressable>
-        </Link>
-      </View>
-
-      {/* Calque : ami·es ou souvenirs. */}
-      <View style={[styles.layers, { top: insets.top + HEADER_HEIGHT + 4 }]}>
-        {(['friends', 'memories'] as const).map((l) => (
-          <Pressable
-            key={l}
-            onPress={() => switchLayer(l)}
-            accessibilityRole="button"
-            accessibilityState={{ selected: layer === l }}
-            style={[styles.layer, layer === l && styles.layerOn]}
-          >
-            <Icon name={l === 'friends' ? 'users' : 'camera'} size={15} color={layer === l ? colors.onAccent : colors.inkSoft} />
-            <T style={[styles.layerText, layer === l && { color: colors.onAccent }]}>
-              {l === 'friends' ? t('map.layer.friends') : t('map.layer.memories')}
-            </T>
-          </Pressable>
-        ))}
       </View>
 
       {layer === 'friends' && alone ? (
@@ -193,52 +207,52 @@ const shadow = {
   elevation: 3,
 };
 
-const styles = StyleSheet.create({
-  center: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 8, backgroundColor: colors.cream },
-  header: { position: 'absolute', left: 16, right: 16, flexDirection: 'row', alignItems: 'center', gap: 10 },
-  round: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    backgroundColor: colors.paper,
-    alignItems: 'center',
-    justifyContent: 'center',
-    ...shadow,
-  },
-  title: {
-    flex: 1,
-    height: HEADER_HEIGHT - 12,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 10,
-    paddingLeft: 8,
-    paddingRight: 16,
-    borderRadius: radius.pill,
-    backgroundColor: colors.paper,
-    ...shadow,
-  },
-  layers: {
-    position: 'absolute',
-    alignSelf: 'center',
-    flexDirection: 'row',
-    padding: 4,
-    gap: 4,
-    borderRadius: radius.pill,
-    backgroundColor: colors.paper,
-    ...shadow,
-  },
-  layer: { flexDirection: 'row', alignItems: 'center', gap: 6, height: 36, paddingHorizontal: 14, borderRadius: radius.pill },
-  layerOn: { backgroundColor: colors.accent },
-  layerText: { fontFamily: fonts.semibold, fontSize: 14, color: colors.inkSoft },
-  emojiTile: { width: 36, height: 36, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
-  empty: {
-    position: 'absolute',
-    left: 16,
-    right: 16,
-    padding: 20,
-    gap: 10,
-    borderRadius: radius.lg,
-    backgroundColor: colors.paper,
-    ...shadow,
-  },
-});
+const styles = themed(() =>
+  StyleSheet.create({
+    center: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 8, backgroundColor: colors.cream },
+    toolbarWrap: { position: 'absolute', left: 12, right: 12, alignItems: 'center' },
+    toolbar: {
+      width: '100%',
+      maxWidth: 560,
+      height: TOOLBAR_HEIGHT,
+      padding: 8,
+      gap: 8,
+      borderRadius: 24,
+      backgroundColor: colors.paper,
+      ...shadow,
+    },
+    row: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: 10 },
+    meta: { flexDirection: 'row', alignItems: 'center', gap: 4 },
+    round: {
+      width: 40,
+      height: 40,
+      borderRadius: 20,
+      backgroundColor: colors.muted,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    layers: { flexDirection: 'row', padding: 3, gap: 3, borderRadius: radius.pill, backgroundColor: colors.muted },
+    layer: {
+      flex: 1,
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      gap: 6,
+      height: 34,
+      borderRadius: radius.pill,
+    },
+    layerOn: { backgroundColor: colors.accent },
+    layerText: { fontFamily: fonts.semibold, fontSize: 14, color: colors.inkSoft },
+    emojiTile: { width: 40, height: 40, borderRadius: 14, alignItems: 'center', justifyContent: 'center' },
+    empty: {
+      position: 'absolute',
+      left: 16,
+      right: 16,
+      padding: 20,
+      gap: 10,
+      borderRadius: radius.lg,
+      backgroundColor: colors.paper,
+      ...shadow,
+    },
+  }),
+);

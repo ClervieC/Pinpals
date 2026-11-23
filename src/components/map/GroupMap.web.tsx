@@ -6,7 +6,7 @@ import { createPortal } from 'react-dom';
 import { ActivityIndicator, Pressable, StyleSheet, View } from 'react-native';
 
 import { ErrorText } from '@/components/ui';
-import { colors } from '@/lib/theme';
+import { colors, themed } from '@/lib/theme';
 
 import { focusTarget, layerBounds, ROUTE_LAYOUT, ROUTE_PAINT, routesGeoJSON, useGroupMarkers } from './markers';
 import { usePastelStyle } from './pastelStyle';
@@ -144,10 +144,12 @@ export function GroupMap(props: GroupMapProps) {
     for (const [id, e] of entries.current) e.el.style.setProperty('z-index', id === front ? '10' : '');
     const target = map.current ? focusTarget(props, map.current.getZoom()) : null;
     if (!target || !map.current) return;
-    map.current.easeTo({
+    // flyTo : dézoome puis rezoome quand on passe d'une ville à l'autre (swipe de fiche).
+    map.current.flyTo({
       ...target,
       padding: { top: topInset, bottom: bottomInset, left: 0, right: 0 },
-      duration: 450,
+      duration: 900,
+      essential: true,
     });
   }, [selectedId, selectedMemoryId]); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -179,6 +181,8 @@ export function GroupMap(props: GroupMapProps) {
   );
 }
 
-const styles = StyleSheet.create({
-  center: { ...StyleSheet.absoluteFill, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.cream },
-});
+const styles = themed(() =>
+  StyleSheet.create({
+    center: { ...StyleSheet.absoluteFill, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.cream },
+  }),
+);

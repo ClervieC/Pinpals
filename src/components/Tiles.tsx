@@ -2,9 +2,9 @@ import { type Href, Link } from 'expo-router';
 import { Children, type ReactNode } from 'react';
 import { Pressable, StyleSheet, useWindowDimensions, View } from 'react-native';
 
-import { colors, fonts, radius, shade, tint } from '@/lib/theme';
+import { colors, fonts, radius, shade, themed, tint } from '@/lib/theme';
 
-import { Icon, type IconName, T } from './ui';
+import { Icon, type IconName, T, cardShadow } from './ui';
 
 export const PAGE_MAX_WIDTH = 760;
 
@@ -163,71 +163,70 @@ export function Chip({ icon, label, tone = 'default' }: { icon?: IconName; label
   );
 }
 
-const styles = StyleSheet.create({
-  grid: { flexDirection: 'row', flexWrap: 'wrap', marginHorizontal: -7 },
-  cell: { padding: 7 },
-  card: {
-    borderRadius: radius.lg,
-    overflow: 'hidden',
-    backgroundColor: colors.paper,
-    borderWidth: 1,
-    borderColor: colors.line,
-  },
-  band: { height: 92, justifyContent: 'flex-end', paddingHorizontal: 16 },
-  deco: { position: 'absolute' },
-  tag: { position: 'absolute', top: 12, left: 12 },
-  badge: {
-    width: 60,
-    height: 60,
-    borderRadius: 20,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: colors.paper,
-    marginBottom: -24,
-    borderWidth: 3,
-    borderColor: colors.paper,
-    shadowColor: '#000',
-    shadowOpacity: 0.08,
-    shadowRadius: 8,
-    shadowOffset: { width: 0, height: 3 },
-    elevation: 2,
-  },
-  body: { flexDirection: 'row', alignItems: 'flex-end', gap: 12, padding: 16, paddingTop: 34 },
-  heroBand: { height: 132, justifyContent: 'flex-end', paddingHorizontal: 20, overflow: 'visible' },
-  heroBadge: { width: 84, height: 84, borderRadius: 28, marginBottom: -34 },
-  heroBody: { padding: 20, paddingTop: 44, gap: 8 },
-  arrow: { width: 38, height: 38, borderRadius: 19, alignItems: 'center', justifyContent: 'center' },
-  add: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 8,
-    padding: 16,
-    borderRadius: radius.lg,
-    borderWidth: 1.5,
-    borderStyle: 'dashed',
-    borderColor: tint(colors.accent, 0.45),
-    backgroundColor: tint(colors.accent, 0.94),
-  },
-  addIcon: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: colors.accent,
-    marginBottom: 4,
-  },
-  chip: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    alignSelf: 'flex-start',
-    paddingHorizontal: 10,
-    paddingVertical: 5,
-    borderRadius: radius.pill,
-    backgroundColor: colors.paper,
-    borderWidth: 1,
-    borderColor: colors.line,
-  },
-  chipText: { fontFamily: fonts.medium, fontSize: 13, color: colors.inkSoft },
-});
+const styles = themed(() =>
+  StyleSheet.create({
+    grid: { flexDirection: 'row', flexWrap: 'wrap', marginHorizontal: -7 },
+    cell: { padding: 7 },
+    // Cartes arrondies à ombre douce, comme les Card de ui.tsx.
+    card: { borderRadius: 24, overflow: 'hidden', backgroundColor: colors.paper, ...cardShadow },
+    band: { height: 92, justifyContent: 'flex-end', paddingHorizontal: 16 },
+    deco: { position: 'absolute' },
+    tag: { position: 'absolute', top: 12, left: 12 },
+    badge: {
+      width: 60,
+      height: 60,
+      borderRadius: 20,
+      alignItems: 'center',
+      justifyContent: 'center',
+      backgroundColor: colors.paper,
+      marginBottom: -24,
+      borderWidth: 3,
+      borderColor: colors.paper,
+      shadowColor: '#000',
+      shadowOpacity: 0.08,
+      shadowRadius: 8,
+      shadowOffset: { width: 0, height: 3 },
+      elevation: 2,
+    },
+    body: { flexDirection: 'row', alignItems: 'flex-end', gap: 12, padding: 16, paddingTop: 34 },
+    heroBand: { height: 132, justifyContent: 'flex-end', paddingHorizontal: 20, overflow: 'visible' },
+    heroBadge: { width: 84, height: 84, borderRadius: 28, marginBottom: -34 },
+    heroBody: { padding: 20, paddingTop: 44, gap: 8 },
+    arrow: { width: 38, height: 38, borderRadius: 19, alignItems: 'center', justifyContent: 'center' },
+    add: {
+      alignItems: 'center',
+      justifyContent: 'center',
+      gap: 8,
+      padding: 16,
+      borderRadius: radius.lg,
+      borderWidth: 1.5,
+      borderStyle: 'dashed',
+      borderColor: tint(colors.accent, 0.45),
+      backgroundColor: tint(colors.accent, 0.94),
+    },
+    addIcon: {
+      width: 48,
+      height: 48,
+      borderRadius: 24,
+      alignItems: 'center',
+      justifyContent: 'center',
+      backgroundColor: colors.accent,
+      marginBottom: 4,
+    },
+    chip: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 6,
+      alignSelf: 'flex-start',
+      // Jamais plus large que son conteneur : un texte long est coupé (« … ») au lieu de déborder.
+      maxWidth: '100%',
+      paddingHorizontal: 10,
+      paddingVertical: 5,
+      borderRadius: radius.pill,
+      backgroundColor: colors.paper,
+      borderWidth: 1,
+      borderColor: colors.line,
+    },
+    chipText: { fontFamily: fonts.medium, fontSize: 13, color: colors.inkSoft, flexShrink: 1 },
+  }),
+);

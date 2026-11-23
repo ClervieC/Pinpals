@@ -8,13 +8,17 @@ import type {
   AddressInput,
   City,
   Friend,
-  FriendNote,
+  FriendNoteInput,
+  FriendPrivateNote,
   GroupMember,
   GroupPreview,
   MapMember,
   Memory,
+  MemoryComment,
   MemoryInput,
   MemoryPhoto,
+  PhotoComment,
+  PhotoLike,
   MemoryStop,
   MemorySummary,
   MyGroup,
@@ -32,9 +36,11 @@ export const keys = {
   myAddress: ['my-address'] as const,
   addressShares: ['address-shares'] as const,
   friendAddress: (fid: string) => ['friend-address', fid] as const,
-  friendNote: (fid: string) => ['friend-note', fid] as const,
+  friendNotes: (fid: string) => ['friend-notes', fid] as const,
   memories: (filter: MemoryFilter) => ['memories', filter.groupId ?? null, filter.friendId ?? null] as const,
   memory: (mid: string) => ['memory', mid] as const,
+  memoryComments: (mid: string) => ['memory-comments', mid] as const,
+  photoSocial: (mid: string) => ['photo-social', mid] as const,
   signedUrls: (paths: string[]) => ['signed-urls', ...paths] as const,
 };
 
@@ -295,35 +301,55 @@ export function useFriendAddress(fid: string) {
 
 // --- Notes privées ------------------------------------------------------------
 
-export function useFriendNote(fid: string) {
+/** Mes notes sur un·e ami·e, des plus anciennes aux plus récentes. Visibles uniquement par moi. */
+export function useFriendPrivateNotes(fid: string) {
   const uid = useUserId();
   return useQuery({
-    queryKey: keys.friendNote(fid),
+    queryKey: keys.friendNotes(fid),
     queryFn: async () =>
-      unwrap<FriendNote | null>(
+      unwrap<FriendPrivateNote[]>(
         await supabase
-          .from('friend_notes')
-          .select('friend_id, gift_ideas, notes')
+          .from('friend_private_notes')
+          .select('id, friend_id, kind, body, created_at, updated_at')
           .eq('author_id', uid)
           .eq('friend_id', fid)
-          .maybeSingle(),
+          .order('created_at'),
       ),
   });
 }
 
-export function useSaveFriendNote(fid: string) {
-  const uid = useUserId();
+export function useAddFriendNote(fid: string) {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: async (input: Pick<FriendNote, 'gift_ideas' | 'notes'>) =>
-      unwrap<FriendNote>(
+    mutationFn: async (input: FriendNoteInput) => {
+      unwrap(await supabase.from('friend_private_notes').insert({ friend_id: fid, kind: input.kind, body: input.body.trim() }));
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: keys.friendNotes(fid) }),
+  });
+}
+
+export function useUpdateFriendNote(fid: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ id, ...input }: FriendNoteInput & { id: string }) => {
+      unwrap(
         await supabase
-          .from('friend_notes')
-          .upsert({ author_id: uid, friend_id: fid, ...input, updated_at: new Date().toISOString() })
-          .select('friend_id, gift_ideas, notes')
-          .single(),
-      ),
-    onSuccess: (note) => qc.setQueryData(keys.friendNote(fid), note),
+          .from('friend_private_notes')
+          .update({ kind: input.kind, body: input.body.trim(), updated_at: new Date().toISOString() })
+          .eq('id', id),
+      );
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: keys.friendNotes(fid) }),
+  });
+}
+
+export function useDeleteFriendNote(fid: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (id: string) => {
+      unwrap(await supabase.from('friend_private_notes').delete().eq('id', id));
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: keys.friendNotes(fid) }),
   });
 }
 
@@ -466,6 +492,108 @@ export function useDeleteMemoryPhoto(mid: string) {
       qc.invalidateQueries({ queryKey: keys.memory(mid) });
       qc.invalidateQueries({ queryKey: ['memories'] });
     },
+  });
+}
+
+// --- Commentaires --------------------------------------------------------------
+
+export function useMemoryComments(mid: string) {
+  return useQuery({
+    queryKey: keys.memoryComments(mid),
+    queryFn: async () =>
+      unwrap<MemoryComment[]>(
+        await supabase
+          .from('memory_comments')
+          .select('*, author:profiles!memory_comments_author_id_fkey(id, display_name, avatar_url, pin_color)')
+          .eq('memory_id', mid)
+          .order('created_at'),
+      ),
+  });
+}
+
+export function useAddMemoryComment(mid: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (body: string) => {
+      unwrap(await supabase.from('memory_comments').insert({ memory_id: mid, body: body.trim() }));
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: keys.memoryComments(mid) }),
+  });
+}
+
+export function useDeleteMemoryComment(mid: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (id: string) => {
+      unwrap(await supabase.from('memory_comments').delete().eq('id', id));
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: keys.memoryComments(mid) }),
+  });
+}
+
+// --- Photos : date, légende, likes, commentaires ------------------------------------
+
+/** Likes et commentaires de toutes les photos d'un souvenir, en deux requêtes. */
+export function usePhotoSocial(mid: string, photoIds: string[]) {
+  return useQuery({
+    queryKey: [...keys.photoSocial(mid), ...photoIds],
+    enabled: photoIds.length > 0,
+    queryFn: async () => {
+      const [likes, comments] = await Promise.all([
+        supabase.from('memory_photo_likes').select('photo_id, user_id').in('photo_id', photoIds),
+        supabase
+          .from('memory_photo_comments')
+          .select('*, author:profiles!memory_photo_comments_author_id_fkey(id, display_name, avatar_url, pin_color)')
+          .in('photo_id', photoIds)
+          .order('created_at'),
+      ]);
+      return { likes: unwrap<PhotoLike[]>(likes), comments: unwrap<PhotoComment[]>(comments) };
+    },
+  });
+}
+
+export function useUpdateMemoryPhoto(mid: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ id, taken_on, caption }: Pick<MemoryPhoto, 'id' | 'taken_on' | 'caption'>) => {
+      unwrap(await supabase.from('memory_photos').update({ taken_on, caption: caption?.trim() || null }).eq('id', id));
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: keys.memory(mid) }),
+  });
+}
+
+export function useTogglePhotoLike(mid: string) {
+  const uid = useUserId();
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ photoId, liked }: { photoId: string; liked: boolean }) => {
+      unwrap(
+        liked
+          ? await supabase.from('memory_photo_likes').delete().eq('photo_id', photoId).eq('user_id', uid)
+          : await supabase.from('memory_photo_likes').insert({ photo_id: photoId }),
+      );
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: keys.photoSocial(mid) }),
+  });
+}
+
+export function useAddPhotoComment(mid: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ photoId, body }: { photoId: string; body: string }) => {
+      unwrap(await supabase.from('memory_photo_comments').insert({ photo_id: photoId, body: body.trim() }));
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: keys.photoSocial(mid) }),
+  });
+}
+
+export function useDeletePhotoComment(mid: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (id: string) => {
+      unwrap(await supabase.from('memory_photo_comments').delete().eq('id', id));
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: keys.photoSocial(mid) }),
   });
 }
 

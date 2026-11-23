@@ -1,15 +1,15 @@
-import { Image } from 'expo-image';
 import * as ImagePicker from 'expo-image-picker';
 import { Link } from 'expo-router';
 import { Platform, Pressable, StyleSheet, View } from 'react-native';
 
 import { formatDateRange, t } from '@/lib/i18n';
 import { useSignedUrls } from '@/lib/queries';
-import { colors, pastels, radius, shade, tint } from '@/lib/theme';
+import { colors, pastels, shade, themed, tint } from '@/lib/theme';
 import type { MemorySummary } from '@/lib/types';
 
 import { AddTile, Chip, Grid } from './Tiles';
-import { EmptyState, ErrorText, Icon, T } from './ui';
+import { Polaroid } from './Polaroid';
+import { cardShadow, EmptyState, ErrorText, Icon, T } from './ui';
 
 export type PickedPhoto = { base64: string; mimeType: string; uri: string };
 
@@ -45,11 +45,14 @@ export function MemoryCard({ memory, coverUrl }: { memory: MemorySummary; coverU
     <Link href={{ pathname: '/memory/[id]', params: { id: memory.id } }} asChild>
       <Pressable style={styles.card}>
         <View style={[styles.cover, { backgroundColor: tint(color, 0.55) }]}>
-          {coverUrl ? (
-            <Image source={{ uri: coverUrl }} style={StyleSheet.absoluteFill} contentFit="cover" transition={150} />
-          ) : (
-            <Icon name={memory.kind === 'trip' ? 'navigation' : 'camera'} size={34} color={shade(color, 0.15)} />
-          )}
+          {/* Couverture façon scrapbook : un polaroïd scotché, penché d'un côté ou de l'autre. */}
+          <Polaroid
+            uri={coverUrl}
+            color={color}
+            width={104}
+            rotate={memory.id.charCodeAt(0) % 2 ? 5 : -5}
+            icon={memory.kind === 'trip' ? 'navigation' : 'camera'}
+          />
           <View style={styles.badges}>
             {memory.kind === 'trip' ? (
               <Chip icon="navigation" label={t('memory.kind.trip')} tone="accent" />
@@ -108,7 +111,7 @@ export function FeaturedMemory({ memory }: { memory: MemorySummary }) {
   const urls = useSignedUrls(memory.photo_paths);
   const color = colorFor(memory.id);
   const when = formatDateRange(memory.happened_on, memory.ends_on);
-  const tilts = ['-6deg', '3deg', '-2deg'];
+  const tilts = [-7, 4, -3];
 
   return (
     <Link href={{ pathname: '/memory/[id]', params: { id: memory.id } }} asChild>
@@ -117,13 +120,14 @@ export function FeaturedMemory({ memory }: { memory: MemorySummary }) {
           {memory.photo_paths.length ? (
             <View style={styles.fan}>
               {memory.photo_paths.map((path, i) => (
-                <View key={path} style={[styles.polaroid, { transform: [{ rotate: tilts[i] }, { translateY: i === 1 ? -8 : 0 }] }]}>
-                  {urls.data?.[path] ? (
-                    <Image source={{ uri: urls.data[path] }} style={styles.polaroidPhoto} contentFit="cover" transition={150} />
-                  ) : (
-                    <View style={[styles.polaroidPhoto, { backgroundColor: tint(color, 0.3) }]} />
-                  )}
-                </View>
+                <Polaroid
+                  key={path}
+                  uri={urls.data?.[path]}
+                  color={color}
+                  width={104}
+                  rotate={tilts[i]}
+                  style={{ marginTop: i === 1 ? -14 : 0 }}
+                />
               ))}
             </View>
           ) : (
@@ -165,32 +169,14 @@ export function EmptyMemories({ hint }: { hint?: string }) {
   );
 }
 
-const styles = StyleSheet.create({
-  card: {
-    borderRadius: radius.lg,
-    overflow: 'hidden',
-    backgroundColor: colors.paper,
-    borderWidth: 1,
-    borderColor: colors.line,
-  },
-  cover: { height: 150, alignItems: 'center', justifyContent: 'center' },
-  badges: { position: 'absolute', left: 12, top: 12, flexDirection: 'row', gap: 6 },
-  body: { flexDirection: 'row', alignItems: 'flex-end', gap: 12, padding: 16 },
-  arrow: { width: 38, height: 38, borderRadius: 19, alignItems: 'center', justifyContent: 'center' },
-  featuredCover: { height: 200, alignItems: 'center', justifyContent: 'center' },
-  fan: { flexDirection: 'row', gap: 8 },
-  polaroid: {
-    width: 100,
-    height: 118,
-    padding: 5,
-    paddingBottom: 18,
-    borderRadius: 6,
-    backgroundColor: colors.paper,
-    shadowColor: '#000',
-    shadowOpacity: 0.14,
-    shadowRadius: 8,
-    shadowOffset: { width: 0, height: 4 },
-    elevation: 3,
-  },
-  polaroidPhoto: { flex: 1, borderRadius: 3 },
-});
+const styles = themed(() =>
+  StyleSheet.create({
+    card: { borderRadius: 24, overflow: 'hidden', backgroundColor: colors.paper, ...cardShadow },
+    cover: { height: 170, alignItems: 'center', justifyContent: 'center' },
+    badges: { position: 'absolute', left: 12, top: 12, flexDirection: 'row', gap: 6 },
+    body: { flexDirection: 'row', alignItems: 'flex-end', gap: 12, padding: 16 },
+    arrow: { width: 38, height: 38, borderRadius: 19, alignItems: 'center', justifyContent: 'center' },
+    featuredCover: { height: 220, alignItems: 'center', justifyContent: 'center' },
+    fan: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  }),
+);

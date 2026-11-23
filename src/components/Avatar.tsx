@@ -1,7 +1,7 @@
 import { Image } from 'expo-image';
 import { StyleSheet, Text, View } from 'react-native';
 
-import { fonts, shade, tint } from '@/lib/theme';
+import { fonts, shade, themed, tint } from '@/lib/theme';
 
 type Props = {
   name: string;
@@ -30,7 +30,9 @@ export function Avatar({ name, url, color, size = 48, ring = 2 }: Props) {
   );
 }
 
-const styles = StyleSheet.create({
-  ring: { alignItems: 'center', justifyContent: 'center' },
-  fallback: { alignItems: 'center', justifyContent: 'center' },
-});
+const styles = themed(() =>
+  StyleSheet.create({
+    ring: { alignItems: 'center', justifyContent: 'center' },
+    fallback: { alignItems: 'center', justifyContent: 'center' },
+  }),
+);

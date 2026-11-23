@@ -1,6 +1,6 @@
 import { StyleSheet, View } from 'react-native';
 
-import { colors, fonts, pastels } from '@/lib/theme';
+import { colors, fonts, pastels, themed } from '@/lib/theme';
 
 import { Icon, type IconName, T } from './ui';
 
@@ -40,18 +40,20 @@ export function FeatureBubbles() {
   );
 }
 
-const styles = StyleSheet.create({
-  row: { flexDirection: 'row', alignItems: 'center', gap: 10 },
-  mark: { backgroundColor: colors.accent, alignItems: 'center', justifyContent: 'center' },
-  name: { fontFamily: fonts.displayHeavy, letterSpacing: -0.8, color: colors.ink },
-  bubbles: { flexDirection: 'row', height: 54 },
-  bubble: {
-    width: 46,
-    height: 46,
-    borderRadius: 23,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderWidth: 3,
-    borderColor: colors.cream,
-  },
-});
+const styles = themed(() =>
+  StyleSheet.create({
+    row: { flexDirection: 'row', alignItems: 'center', gap: 10 },
+    mark: { backgroundColor: colors.accent, alignItems: 'center', justifyContent: 'center' },
+    name: { fontFamily: fonts.displayHeavy, letterSpacing: -0.8, color: colors.ink },
+    bubbles: { flexDirection: 'row', height: 54 },
+    bubble: {
+      width: 46,
+      height: 46,
+      borderRadius: 23,
+      alignItems: 'center',
+      justifyContent: 'center',
+      borderWidth: 3,
+      borderColor: colors.cream,
+    },
+  }),
+);

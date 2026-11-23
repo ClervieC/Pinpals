@@ -1,48 +1,39 @@
-import type { AuthError } from '@supabase/supabase-js';
 import * as Linking from 'expo-linking';
-import { useState } from 'react';
-import { KeyboardAvoidingView, Platform, StyleSheet, View } from 'react-native';
+import { Link, useLocalSearchParams } from 'expo-router';
+import { useEffect, useState } from 'react';
+import { Keyboard, KeyboardAvoidingView, Platform, Pressable, StyleSheet, useWindowDimensions, View } from 'react-native';
+import Animated, { FadeIn, FadeInDown } from 'react-native-reanimated';
 
-import { FeatureBubbles, Logo } from '@/components/Logo';
-import { Button, Card, ErrorText, Field, Screen, T } from '@/components/ui';
+import { FloatingLogo, PasswordField, PasswordHint } from '@/components/decor';
+import { Button, Card, ErrorText, Field, Screen, Segmented, T } from '@/components/ui';
+import { authErrorMessage, MIN_PASSWORD } from '@/lib/authErrors';
 import { t } from '@/lib/i18n';
 import { supabase } from '@/lib/supabase';
-import { colors } from '@/lib/theme';
+import { colors, fonts, themed } from '@/lib/theme';
 
-type Mode = 'sign-in' | 'sign-up';
-
-const MIN_PASSWORD = 6;
-
-// Les messages de Supabase Auth sont en anglais : on traduit les cas courants.
-function authMessage(e: AuthError) {
-  switch (e.code) {
-    case 'invalid_credentials':
-      return t('auth.error.invalidCredentials');
-    case 'user_already_exists':
-    case 'email_exists':
-      return t('auth.error.userExists');
-    case 'weak_password':
-      return t('auth.error.weakPassword', { min: MIN_PASSWORD });
-    case 'email_not_confirmed':
-      return t('auth.error.emailNotConfirmed');
-    case 'over_email_send_rate_limit':
-    case 'over_request_rate_limit':
-      return t('auth.error.rateLimit');
-    default:
-      return e.message;
-  }
-}
+type Mode = 'sign-in' | 'sign-up' | 'forgot';
 
 export default function SignIn() {
-  const [mode, setMode] = useState<Mode>('sign-in');
+  // ?mode=sign-up depuis un lien d'invitation : on arrive direct sur l'inscription.
+  const params = useLocalSearchParams<{ mode?: string }>();
+  const [mode, setMode] = useState<Mode>(params.mode === 'sign-up' ? 'sign-up' : 'sign-in');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [confirmSentTo, setConfirmSentTo] = useState<string | null>(null);
+  // Email auquel on vient d'envoyer un mail (confirmation d'inscription ou reset).
+  const [sentTo, setSentTo] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  // Pas de défilement : tout tient dans l'écran, le logo se réduit si la place manque.
+  const { height } = useWindowDimensions();
+  const keyboardOpen = useKeyboardOpen();
+  const small = height < 720 || keyboardOpen;
+  const compact = mode === 'forgot' || !!sentTo || keyboardOpen;
+  const logoSize = keyboardOpen ? 64 : compact || height < 720 ? 96 : 140;
+
   const isSignUp = mode === 'sign-up';
-  const canSubmit = email.includes('@') && password.length >= (isSignUp ? MIN_PASSWORD : 1);
+  const address = email.trim().toLowerCase();
+  const canSubmit = address.includes('@') && (mode === 'forgot' || password.length >= (isSignUp ? MIN_PASSWORD : 1));
 
   function switchMode(next: Mode) {
     setMode(next);
@@ -54,96 +45,183 @@ export default function SignIn() {
     if (!canSubmit || loading) return;
     setLoading(true);
     setError(null);
-    const address = email.trim().toLowerCase();
 
-    if (isSignUp) {
+    if (mode === 'sign-in') {
+      const { error: e } = await supabase.auth.signInWithPassword({ email: address, password });
+      setLoading(false);
+      if (e) setError(authErrorMessage(e));
+      return;
+    }
+
+    if (mode === 'sign-up') {
       const { data, error: e } = await supabase.auth.signUp({
         email: address,
         password,
         options: { emailRedirectTo: Linking.createURL('/auth/callback') },
       });
       setLoading(false);
-      if (e) setError(authMessage(e));
+      if (e) setError(authErrorMessage(e));
       // Email déjà inscrit : Supabase renvoie un faux succès sans identité et n'envoie aucun mail.
       else if (data.user?.identities?.length === 0) setError(t('auth.error.userExists'));
       // Pas de session : le projet exige une confirmation par email.
-      else if (!data.session) setConfirmSentTo(address);
+      else if (!data.session) setSentTo(address);
       return;
     }
 
-    const { error: e } = await supabase.auth.signInWithPassword({ email: address, password });
+    const { error: e } = await supabase.auth.resetPasswordForEmail(address, {
+      redirectTo: Linking.createURL('/auth/reset-password'),
+    });
     setLoading(false);
-    if (e) setError(authMessage(e));
+    if (e) setError(authErrorMessage(e));
+    else setSentTo(address);
   }
 
   return (
     <Screen>
-      <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={styles.body}>
-        <View style={styles.hero}>
-          <Logo size={34} />
-          <FeatureBubbles />
-          <T variant="title" style={{ fontSize: 38, lineHeight: 42 }}>
+      <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={[styles.body, { gap: small ? 14 : 22 }]}>
+        <Animated.View entering={FadeInDown.springify().damping(14)} style={styles.hero}>
+          <FloatingLogo size={logoSize} />
+          <T variant="title" style={[styles.headline, logoSize < 100 && { fontSize: 28, lineHeight: 32 }]}>
             {t('auth.headline')}
           </T>
-          <T style={{ color: colors.inkSoft }}>{t('auth.tagline')}</T>
-        </View>
+          {compact || height < 700 ? null : <T style={styles.tagline}>{t('auth.tagline')}</T>}
+        </Animated.View>
 
-        {confirmSentTo ? (
-          <Card>
-            <T variant="heading">{t('auth.confirm.title')}</T>
-            <T>{t('auth.confirm.body', { email: confirmSentTo })}</T>
-            <Button
-              label={t('auth.confirm.done')}
-              onPress={() => {
-                setConfirmSentTo(null);
-                switchMode('sign-in');
-              }}
-            />
+        <Animated.View entering={FadeInDown.delay(150).springify().damping(16)}>
+          <Card style={{ gap: 16 }}>
+            {sentTo ? (
+              <Animated.View key="sent" entering={FadeIn} style={styles.sent}>
+                <T style={{ fontSize: 48 }}>💌</T>
+                <T variant="heading" style={{ textAlign: 'center' }}>
+                  {isSignUp ? t('auth.confirm.title') : t('auth.forgot.sentTitle')}
+                </T>
+                <T style={{ textAlign: 'center', color: colors.inkSoft }}>
+                  {isSignUp ? t('auth.confirm.body', { email: sentTo }) : t('auth.forgot.sentBody', { email: sentTo })}
+                </T>
+                <Button
+                  label={isSignUp ? t('auth.confirm.done') : t('callback.back')}
+                  kind={isSignUp ? 'primary' : 'ghost'}
+                  style={{ alignSelf: 'stretch' }}
+                  onPress={() => {
+                    setSentTo(null);
+                    switchMode('sign-in');
+                  }}
+                />
+              </Animated.View>
+            ) : (
+              <>
+                {mode === 'forgot' ? (
+                  <Animated.View key="forgot" entering={FadeIn} style={{ gap: 6 }}>
+                    <Pressable onPress={() => switchMode('sign-in')} hitSlop={10} style={{ alignSelf: 'flex-start' }}>
+                      <T variant="label">← {t('common.back')}</T>
+                    </Pressable>
+                    <T variant="heading">{t('auth.forgot.title')}</T>
+                    <T style={{ color: colors.inkSoft }}>{t('auth.forgot.body')}</T>
+                  </Animated.View>
+                ) : (
+                  <Segmented
+                    value={mode}
+                    onChange={switchMode}
+                    options={[
+                      { value: 'sign-in', label: t('auth.signIn.title') },
+                      { value: 'sign-up', label: t('auth.signUp.title') },
+                    ]}
+                  />
+                )}
+
+                <Field
+                  label={t('auth.email')}
+                  value={email}
+                  onChangeText={setEmail}
+                  placeholder={t('auth.emailPlaceholder')}
+                  keyboardType="email-address"
+                  autoCapitalize="none"
+                  autoComplete="email"
+                  textContentType={isSignUp ? 'username' : 'emailAddress'}
+                  onSubmitEditing={submit}
+                />
+
+                {mode !== 'forgot' ? (
+                  <View style={{ gap: 8 }}>
+                    <PasswordField
+                      label={t('auth.password')}
+                      value={password}
+                      onChangeText={setPassword}
+                      isNew={isSignUp}
+                      onSubmitEditing={submit}
+                    />
+                    {isSignUp ? (
+                      <PasswordHint length={password.length} />
+                    ) : (
+                      <Pressable onPress={() => switchMode('forgot')} hitSlop={8} style={{ alignSelf: 'flex-end' }}>
+                        <T variant="label" style={{ color: colors.accent }}>
+                          {t('auth.forgot.link')}
+                        </T>
+                      </Pressable>
+                    )}
+                  </View>
+                ) : null}
+
+                <ErrorText error={error} />
+                <Button
+                  label={
+                    mode === 'sign-in' ? t('auth.signIn.submit') : isSignUp ? t('auth.signUp.submit') : t('auth.forgot.submit')
+                  }
+                  onPress={submit}
+                  loading={loading}
+                  disabled={!canSubmit}
+                />
+              </>
+            )}
           </Card>
-        ) : (
-          <Card>
-            <T variant="heading">{isSignUp ? t('auth.signUp.title') : t('auth.signIn.title')}</T>
-            <Field
-              label={t('auth.email')}
-              value={email}
-              onChangeText={setEmail}
-              placeholder={t('auth.emailPlaceholder')}
-              keyboardType="email-address"
-              autoCapitalize="none"
-              autoComplete="email"
-              textContentType="emailAddress"
-            />
-            <Field
-              label={t('auth.password')}
-              value={password}
-              onChangeText={setPassword}
-              placeholder={isSignUp ? t('auth.passwordMin', { min: MIN_PASSWORD }) : '••••••••'}
-              secureTextEntry
-              autoCapitalize="none"
-              autoComplete={isSignUp ? 'new-password' : 'current-password'}
-              textContentType={isSignUp ? 'newPassword' : 'password'}
-              onSubmitEditing={submit}
-            />
-            <ErrorText error={error} />
-            <Button
-              label={isSignUp ? t('auth.signUp.submit') : t('auth.signIn.submit')}
-              onPress={submit}
-              loading={loading}
-              disabled={!canSubmit}
-            />
-            <Button
-              label={isSignUp ? t('auth.toSignIn') : t('auth.toSignUp')}
-              kind="ghost"
-              onPress={() => switchMode(isSignUp ? 'sign-in' : 'sign-up')}
-            />
-          </Card>
+        </Animated.View>
+
+        {sentTo ? null : (
+          <View style={{ gap: 6 }}>
+            {isSignUp ? (
+              <T variant="caption" style={styles.footnote}>
+                {t('auth.privacyNote')}
+              </T>
+            ) : null}
+            <T variant="caption" style={styles.footnote}>
+              {isSignUp ? t('auth.legal.signUp') : t('auth.legal.signIn')}
+              <Link href="/legal/terms" style={styles.link}>
+                {t('auth.legal.terms')}
+              </Link>
+              {t('auth.legal.and')}
+              <Link href="/legal/privacy" style={styles.link}>
+                {t('auth.legal.privacy')}
+              </Link>
+              .
+            </T>
+          </View>
         )}
       </KeyboardAvoidingView>
     </Screen>
   );
 }
 
-const styles = StyleSheet.create({
-  body: { flex: 1, justifyContent: 'center', gap: 28, width: '100%', maxWidth: 420, alignSelf: 'center' },
-  hero: { gap: 14 },
-});
+function useKeyboardOpen() {
+  const [open, setOpen] = useState(false);
+  useEffect(() => {
+    const show = Keyboard.addListener(Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow', () => setOpen(true));
+    const hide = Keyboard.addListener(Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide', () => setOpen(false));
+    return () => {
+      show.remove();
+      hide.remove();
+    };
+  }, []);
+  return open;
+}
+
+const styles = themed(() =>
+  StyleSheet.create({
+    body: { flex: 1, justifyContent: 'center', width: '100%', maxWidth: 440, alignSelf: 'center' },
+    hero: { alignItems: 'center', gap: 6 },
+    headline: { fontSize: 34, lineHeight: 38, textAlign: 'center' },
+    tagline: { color: colors.inkSoft, textAlign: 'center', maxWidth: 340 },
+    sent: { alignItems: 'center', gap: 10 },
+    footnote: { textAlign: 'center' },
+    link: { fontFamily: fonts.semibold, color: colors.ink, textDecorationLine: 'underline' },
+  }),
+);

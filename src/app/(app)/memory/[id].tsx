@@ -1,15 +1,18 @@
 import { Image } from 'expo-image';
 import { router, Stack, useLocalSearchParams } from 'expo-router';
 import { useState } from 'react';
-import { Pressable, StyleSheet, View } from 'react-native';
+import { Pressable, StyleSheet, useWindowDimensions, View } from 'react-native';
 
 import { Avatar } from '@/components/Avatar';
 import { ConfirmButton } from '@/components/GroupForm';
 import { colorFor, pickPhotos } from '@/components/Memories';
+import { MemoryComments } from '@/components/MemoryComments';
+import { PhotoViewer } from '@/components/PhotoViewer';
+import { Polaroid } from '@/components/Polaroid';
 import { Chip, Hero } from '@/components/Tiles';
-import { Button, ErrorText, Icon, Loading, Screen, SectionCard, T } from '@/components/ui';
+import { ErrorText, Icon, Loading, Screen, SectionCard, T } from '@/components/ui';
 import { useUserId } from '@/lib/auth';
-import { formatDateRange, t } from '@/lib/i18n';
+import { formatDate, formatDateRange, t } from '@/lib/i18n';
 import {
   useAddMemoryPhotos,
   useDeleteMemory,
@@ -18,10 +21,10 @@ import {
   useMemory,
   useMyGroups,
   useMyProfile,
+  usePhotoSocial,
   useSignedUrls,
 } from '@/lib/queries';
-import { colors, fonts, radius, shade, tint } from '@/lib/theme';
-import type { MemoryPhoto } from '@/lib/types';
+import { colors, fonts, radius, shade, themed, tint } from '@/lib/theme';
 
 /** Une page du scrapbook : récit, personnes, photos. Toute l'audience peut ajouter des photos. */
 export default function MemoryScreen() {
@@ -35,7 +38,12 @@ export default function MemoryScreen() {
   const deletePhoto = useDeleteMemoryPhoto(id);
   const deleteMemory = useDeleteMemory(id);
   const urls = useSignedUrls(memory.data?.photos.map((p) => p.path) ?? []);
-  const [selected, setSelected] = useState<MemoryPhoto | null>(null);
+  // Photo ouverte en grand (index dans m.photos) ; null = visionneuse fermée.
+  const [viewerIndex, setViewerIndex] = useState<number | null>(null);
+  const social = usePhotoSocial(id, memory.data?.photos.map((p) => p.id) ?? []);
+  // Mur de polaroïds sur 3 colonnes : largeur de l'écran (max 760) moins les marges de l'écran et de la carte.
+  const { width: screenWidth } = useWindowDimensions();
+  const polaroidWidth = Math.floor((Math.min(screenWidth, 760) - 40 - 36) / 3) - 16;
 
   if (memory.isPending) return <Loading />;
   const m = memory.data;
@@ -117,23 +125,30 @@ export default function MemoryScreen() {
 
       <SectionCard icon="image" title={t('memory.photos', { count: m.photos.length })}>
         <View style={styles.grid}>
-          {m.photos.map((photo) => (
+          {m.photos.map((photo, i) => (
             <Pressable
               key={photo.id}
-              onPress={() => setSelected(selected?.id === photo.id ? null : photo)}
+              onPress={() => setViewerIndex(i)}
+              accessibilityRole="imagebutton"
+              accessibilityLabel={photo.caption ?? t('photo.open')}
               style={styles.cell}
             >
-              <View style={[styles.photoWrap, selected?.id === photo.id && styles.photoSelected]}>
-                {urls.data?.[photo.path] ? (
-                  <Image source={{ uri: urls.data[photo.path] }} style={styles.photo} contentFit="cover" transition={150} />
-                ) : (
-                  <View style={[styles.photo, { backgroundColor: colors.muted }]} />
-                )}
-              </View>
+              <Polaroid
+                uri={urls.data?.[photo.path]}
+                color={color}
+                width={polaroidWidth}
+                rotate={TILTS[i % TILTS.length]}
+                tape={i % 3 === 0}
+                caption={photo.caption ?? (photo.taken_on ? formatDate(photo.taken_on) : null)}
+              />
+              <PhotoCounts
+                likes={social.data?.likes.filter((l) => l.photo_id === photo.id).length ?? 0}
+                comments={social.data?.comments.filter((c) => c.photo_id === photo.id).length ?? 0}
+              />
             </Pressable>
           ))}
           <Pressable onPress={add} disabled={addPhotos.isPending} style={styles.cell}>
-            <View style={[styles.photo, styles.addTile]}>
+            <View style={[styles.addTile, { width: polaroidWidth }]}>
               <Icon name={addPhotos.isPending ? 'loader' : 'camera'} size={22} color={colors.accent} />
               <T variant="caption" style={{ color: colors.accent, fontFamily: fonts.medium }}>
                 {t('memory.addPhotos')}
@@ -141,20 +156,33 @@ export default function MemoryScreen() {
             </View>
           </Pressable>
         </View>
+        <T variant="caption">{t('memory.photosHint')}</T>
         <ErrorText
-          error={addPhotos.error ?? deletePhoto.error ?? urls.error ?? (photoError && !addPhotos.isSuccess ? t('memory.photoUploadFailed') : null)}
+          error={addPhotos.error ?? urls.error ?? social.error ?? (photoError && !addPhotos.isSuccess ? t('memory.photoUploadFailed') : null)}
         />
       </SectionCard>
 
-      {selected && (selected.uploaded_by === uid || isAuthor) ? (
-        <Button
-          label={t('memory.deletePhoto')}
-          kind="secondary"
-          icon="trash-2"
-          loading={deletePhoto.isPending}
-          onPress={() => deletePhoto.mutate(selected, { onSuccess: () => setSelected(null) })}
-        />
-      ) : null}
+      <PhotoViewer
+        memoryId={m.id}
+        memoryAuthorId={m.author_id}
+        photos={m.photos}
+        urls={urls.data}
+        likes={social.data?.likes ?? []}
+        comments={social.data?.comments ?? []}
+        people={everyone}
+        index={viewerIndex}
+        onIndexChange={setViewerIndex}
+        onClose={() => setViewerIndex(null)}
+        deleting={deletePhoto.isPending}
+        onDelete={(photo) =>
+          deletePhoto.mutate(photo, {
+            // Dernière photo supprimée : on ferme ; sinon on reste sur une photo voisine.
+            onSuccess: () => setViewerIndex((i) => (m.photos.length <= 1 || i === null ? null : Math.min(i, m.photos.length - 2))),
+          })
+        }
+      />
+
+      <MemoryComments memoryId={m.id} memoryAuthorId={m.author_id} />
 
       {isAuthor ? (
         <View style={{ marginTop: 16 }}>
@@ -176,35 +204,65 @@ export default function MemoryScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  chips: { flexDirection: 'row', flexWrap: 'wrap', gap: 6 },
-  people: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 4 },
-  person: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    paddingLeft: 3,
-    paddingRight: 10,
-    paddingVertical: 3,
-    borderRadius: radius.pill,
-    backgroundColor: colors.paper,
-    borderWidth: 1,
-    borderColor: colors.line,
-  },
-  grid: { flexDirection: 'row', flexWrap: 'wrap', marginHorizontal: -4 },
-  cell: { width: '33.33%', padding: 4 },
-  photoWrap: { borderRadius: radius.sm, overflow: 'hidden', borderWidth: 2, borderColor: 'transparent' },
-  photoSelected: { borderColor: colors.ink },
-  photo: { width: '100%', aspectRatio: 1 },
-  addTile: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 4,
-    padding: 6,
-    borderRadius: radius.sm,
-    borderWidth: 1.5,
-    borderStyle: 'dashed',
-    borderColor: tint(colors.accent, 0.4),
-    backgroundColor: tint(colors.accent, 0.92),
-  },
-});
+// Inclinaisons du mur de photos : variées mais discrètes.
+const TILTS = [-3, 2, -1.5, 3, -2, 1];
+
+/** Petits compteurs sous un polaroïd : n'apparaissent que s'il y a des likes ou des commentaires. */
+function PhotoCounts({ likes, comments }: { likes: number; comments: number }) {
+  if (!likes && !comments) return null;
+  return (
+    <View style={styles.counts}>
+      {likes ? (
+        <View style={styles.count}>
+          <Icon name="heart" size={11} color={colors.accent} />
+          <T variant="caption" style={{ fontSize: 11 }}>
+            {likes}
+          </T>
+        </View>
+      ) : null}
+      {comments ? (
+        <View style={styles.count}>
+          <Icon name="message-circle" size={11} color={colors.inkSoft} />
+          <T variant="caption" style={{ fontSize: 11 }}>
+            {comments}
+          </T>
+        </View>
+      ) : null}
+    </View>
+  );
+}
+
+const styles = themed(() =>
+  StyleSheet.create({
+    chips: { flexDirection: 'row', flexWrap: 'wrap', gap: 6 },
+    people: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 4 },
+    person: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 6,
+      paddingLeft: 3,
+      paddingRight: 10,
+      paddingVertical: 3,
+      borderRadius: radius.pill,
+      backgroundColor: colors.paper,
+      borderWidth: 1,
+      borderColor: colors.line,
+    },
+    grid: { flexDirection: 'row', flexWrap: 'wrap', marginHorizontal: -4, paddingTop: 6 },
+    cell: { width: '33.33%', alignItems: 'center', paddingVertical: 10 },
+    counts: { flexDirection: 'row', gap: 8, marginTop: 8 },
+    count: { flexDirection: 'row', alignItems: 'center', gap: 3 },
+    addTile: {
+      aspectRatio: 0.84,
+      alignItems: 'center',
+      justifyContent: 'center',
+      gap: 4,
+      padding: 6,
+      borderRadius: radius.sm,
+      borderWidth: 1.5,
+      borderStyle: 'dashed',
+      borderColor: tint(colors.accent, 0.4),
+      backgroundColor: tint(colors.accent, 0.92),
+    },
+  }),
+);

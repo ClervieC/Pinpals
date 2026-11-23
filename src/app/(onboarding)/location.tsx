@@ -1,4 +1,5 @@
 import { CitySearch } from '@/components/CitySearch';
+import { Steps } from '@/components/decor';
 import { Chip } from '@/components/Tiles';
 import { ErrorText, PageHeader, Screen, SectionCard, T } from '@/components/ui';
 import { t } from '@/lib/i18n';
@@ -10,7 +11,8 @@ export default function OnboardingLocation() {
 
   return (
     <Screen scroll>
-      <PageHeader eyebrow={t('onboarding.step', { step: 2, total: 2 })} title={t('onboarding.location.title')} />
+      <Steps current={2} total={2} />
+      <PageHeader title={t('onboarding.location.title')} />
       <T style={{ color: colors.inkSoft }}>{t('onboarding.location.body')}</T>
       <SectionCard icon="map-pin" title={t('onboarding.location.search')} right={<Chip icon="lock" label={t('onboarding.location.private')} />}>
         {/* Une fois la ville enregistrée, le layout racine bascule tout seul vers l'app. */}

@@ -2,12 +2,12 @@ import { router, useLocalSearchParams } from 'expo-router';
 import { StyleSheet, View } from 'react-native';
 import Animated, { ZoomIn } from 'react-native-reanimated';
 
-import { Button, ErrorText, Icon, Loading, Screen, T } from '@/components/ui';
+import { Button, Card, ErrorText, Icon, Loading, Screen, T } from '@/components/ui';
 import { useAuth } from '@/lib/auth';
 import { t, tn } from '@/lib/i18n';
 import { pendingInvite } from '@/lib/invite';
 import { useGroupPreview, useJoinGroup, useMyGroups, useProfile } from '@/lib/queries';
-import { colors, tint } from '@/lib/theme';
+import { colors, themed, tint } from '@/lib/theme';
 
 /** Ouvert par pinpals://join/CODE ou https://pinpals.app/join/CODE. */
 export default function Join() {
@@ -26,10 +26,17 @@ export default function Join() {
     return (
       <Screen>
         <View style={styles.center}>
-          <Icon name="help-circle" size={36} color={colors.inkSoft} />
-          <T variant="heading">{t('join.notFound')}</T>
-          <ErrorText error={preview.error} />
-          <Button label={t('common.back')} kind="ghost" onPress={() => router.replace('/')} />
+          <Card style={styles.card}>
+            <Icon name="help-circle" size={36} color={colors.inkSoft} />
+            <T variant="heading" style={{ textAlign: 'center' }}>
+              {t('join.notFound')}
+            </T>
+            <T variant="caption" style={{ textAlign: 'center' }}>
+              {t('join.notFoundBody')}
+            </T>
+            <ErrorText error={preview.error} />
+            <Button label={t('common.back')} kind="ghost" onPress={() => router.replace('/')} />
+          </Card>
         </View>
       </Screen>
     );
@@ -46,7 +53,8 @@ export default function Join() {
     // Pas encore de compte (ou onboarding pas fini) : on garde le code et on revient après.
     if (!session || !onboarded) {
       await pendingInvite.set(code);
-      router.replace(session ? '/profile' : '/sign-in');
+      if (session) router.replace('/profile');
+      else router.replace({ pathname: '/sign-in', params: { mode: 'sign-up' } });
       return;
     }
     join.mutate(code, {
@@ -63,25 +71,44 @@ export default function Join() {
         : t('join.join');
 
   return (
-    <Screen>
+    <Screen accent={group.color}>
       <View style={styles.center}>
-        <Animated.View entering={ZoomIn.springify().damping(14)} style={[styles.badge, { backgroundColor: tint(group.color, 0.65) }]}>
-          <T style={{ fontSize: 52 }}>{group.emoji}</T>
-        </Animated.View>
-        <T variant="label">{t('join.invited')}</T>
-        <T variant="title" style={{ textAlign: 'center' }}>
-          {group.name}
-        </T>
-        <T variant="caption">{tn('join.count', group.member_count)}</T>
+        <Card style={styles.card}>
+          <Animated.View entering={ZoomIn.delay(150).springify().damping(14)} style={[styles.badge, { backgroundColor: tint(group.color, 0.65) }]}>
+            <T style={{ fontSize: 52 }}>{group.emoji}</T>
+          </Animated.View>
+          <T variant="label">{t('join.invited')}</T>
+          <T variant="title" style={{ textAlign: 'center' }}>
+            {group.name}
+          </T>
+          <T variant="caption">{tn('join.count', group.member_count)}</T>
+          <ErrorText error={join.error} />
+          <Button label={label} loading={join.isPending} onPress={onPress} style={{ alignSelf: 'stretch' }} />
+          {session ? <Button label={t('common.later')} kind="ghost" onPress={() => router.replace('/')} /> : null}
+        </Card>
+        {!session ? (
+          <T variant="caption" style={{ textAlign: 'center' }}>
+            {t('join.needAccount')}
+          </T>
+        ) : null}
       </View>
-      <ErrorText error={join.error} />
-      <Button label={label} loading={join.isPending} onPress={onPress} />
-      {session ? <Button label={t('common.later')} kind="ghost" onPress={() => router.replace('/')} /> : null}
     </Screen>
   );
 }
 
-const styles = StyleSheet.create({
-  center: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 8 },
-  badge: { width: 112, height: 112, borderRadius: 34, alignItems: 'center', justifyContent: 'center', marginBottom: 12 },
-});
+const styles = themed(() =>
+  StyleSheet.create({
+    center: { flex: 1, justifyContent: 'center', gap: 14, width: '100%', maxWidth: 440, alignSelf: 'center' },
+    card: { alignItems: 'center', gap: 8, paddingVertical: 28 },
+    badge: {
+      width: 112,
+      height: 112,
+      borderRadius: 34,
+      alignItems: 'center',
+      justifyContent: 'center',
+      marginBottom: 12,
+      borderWidth: 4,
+      borderColor: colors.paper,
+    },
+  }),
+);

@@ -2,7 +2,7 @@ import { Pressable, ScrollView, StyleSheet, useWindowDimensions, View } from 're
 
 import { countryFlag } from '@/lib/geo';
 import { t } from '@/lib/i18n';
-import { colors, fonts, radius } from '@/lib/theme';
+import { colors, fonts, radius, themed } from '@/lib/theme';
 import type { MapMember } from '@/lib/types';
 
 import { Avatar } from './Avatar';
@@ -65,35 +65,37 @@ export function CitySheet({ members, onPick, onClose, bottomInset }: Props) {
   );
 }
 
-const styles = StyleSheet.create({
-  sheet: {
-    position: 'absolute',
-    left: 0,
-    right: 0,
-    bottom: 0,
-    paddingTop: 10,
-    paddingHorizontal: 20,
-    gap: 12,
-    backgroundColor: colors.paper,
-    borderTopLeftRadius: radius.lg + 8,
-    borderTopRightRadius: radius.lg + 8,
-    shadowColor: '#000',
-    shadowOpacity: 0.08,
-    shadowRadius: 20,
-    shadowOffset: { width: 0, height: -6 },
-    elevation: 12,
-  },
-  handle: { alignSelf: 'center', width: 40, height: 4, borderRadius: 2, backgroundColor: colors.line },
-  header: { flexDirection: 'row', alignItems: 'flex-end', gap: 12 },
-  close: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderWidth: 1,
-    borderColor: colors.line,
-  },
-  row: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 10 },
-  divider: { borderTopWidth: 1, borderTopColor: colors.line },
-});
+const styles = themed(() =>
+  StyleSheet.create({
+    sheet: {
+      position: 'absolute',
+      left: 0,
+      right: 0,
+      bottom: 0,
+      paddingTop: 10,
+      paddingHorizontal: 20,
+      gap: 12,
+      backgroundColor: colors.paper,
+      borderTopLeftRadius: radius.lg + 8,
+      borderTopRightRadius: radius.lg + 8,
+      shadowColor: '#000',
+      shadowOpacity: 0.08,
+      shadowRadius: 20,
+      shadowOffset: { width: 0, height: -6 },
+      elevation: 12,
+    },
+    handle: { alignSelf: 'center', width: 40, height: 4, borderRadius: 2, backgroundColor: colors.line },
+    header: { flexDirection: 'row', alignItems: 'flex-end', gap: 12 },
+    close: {
+      width: 36,
+      height: 36,
+      borderRadius: 18,
+      alignItems: 'center',
+      justifyContent: 'center',
+      borderWidth: 1,
+      borderColor: colors.line,
+    },
+    row: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 10 },
+    divider: { borderTopWidth: 1, borderTopColor: colors.line },
+  }),
+);

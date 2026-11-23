@@ -20,7 +20,7 @@ import {
   useRemoveMember,
   useUpdateGroup,
 } from '@/lib/queries';
-import { colors, fonts, radius, tint } from '@/lib/theme';
+import { colors, fonts, radius, themed, tint } from '@/lib/theme';
 
 export default function GroupSettings() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -126,9 +126,11 @@ export default function GroupSettings() {
   );
 }
 
-const styles = StyleSheet.create({
-  codeBox: { alignItems: 'center', gap: 6, paddingVertical: 18, borderRadius: radius.md, borderWidth: 1.5, borderStyle: 'dashed' },
-  code: { fontFamily: fonts.displayHeavy, fontSize: 38, letterSpacing: 4, color: colors.ink },
-  member: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 10 },
-  divider: { borderTopWidth: 1, borderTopColor: colors.line },
-});
+const styles = themed(() =>
+  StyleSheet.create({
+    codeBox: { alignItems: 'center', gap: 6, paddingVertical: 18, borderRadius: radius.md, borderWidth: 1.5, borderStyle: 'dashed' },
+    code: { fontFamily: fonts.displayHeavy, fontSize: 38, letterSpacing: 4, color: colors.ink },
+    member: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 10 },
+    divider: { borderTopWidth: 1, borderTopColor: colors.line },
+  }),
+);

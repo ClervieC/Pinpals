@@ -1,15 +1,15 @@
-import { Image } from 'expo-image';
 import { Link } from 'expo-router';
 import { Pressable, StyleSheet, View } from 'react-native';
 
 import { formatDateRange, monthName, t } from '@/lib/i18n';
 import { useSignedUrls } from '@/lib/queries';
-import { colors, fonts, radius, tint } from '@/lib/theme';
+import { colors, fonts, radius, themed, tint } from '@/lib/theme';
 import type { MemorySummary } from '@/lib/types';
 
 import { colorFor } from './Memories';
 import { Chip } from './Tiles';
-import { ErrorText, T } from './ui';
+import { MoreSticker, Polaroid } from './Polaroid';
+import { cardShadow, ErrorText, T } from './ui';
 
 /** Date de référence d'un souvenir : sa date, sinon sa création. */
 function dateOf(m: MemorySummary): Date {
@@ -49,7 +49,9 @@ export function MemoryTimeline({ memories }: { memories: MemorySummary[] }) {
             <View style={styles.line} />
             {section.months.map((month) => (
               <View key={month.month} style={{ gap: 10 }}>
-                <T style={styles.month}>{monthName(month.month).toUpperCase()}</T>
+                <View style={styles.monthPill}>
+                  <T style={styles.month}>{monthName(month.month).toUpperCase()}</T>
+                </View>
                 {month.items.map((m) => (
                   <TimelineItem key={m.id} memory={m} urls={urls.data} />
                 ))}
@@ -62,34 +64,48 @@ export function MemoryTimeline({ memories }: { memories: MemorySummary[] }) {
   );
 }
 
+// Inclinaisons des polaroïds empilés, de celui du fond à celui du dessus.
+const FAN = [-9, 6, -2];
+
 function TimelineItem({ memory, urls }: { memory: MemorySummary; urls: Record<string, string> | undefined }) {
   const color = colorFor(memory.id);
   const when = formatDateRange(memory.happened_on, memory.ends_on);
-  const extra = memory.photo_count - memory.photo_paths.length;
+  const shown = memory.photo_paths.slice(0, 3);
+  const extra = memory.photo_count - shown.length;
+  // Un souvenir sur deux penche dans l'autre sens : moins mécanique.
+  const flip = memory.id.charCodeAt(0) % 2 ? -1 : 1;
 
   return (
     <View>
       <View style={[styles.dot, { backgroundColor: memory.kind === 'trip' ? colors.accent : color }]} />
       <Link href={{ pathname: '/memory/[id]', params: { id: memory.id } }} asChild>
         <Pressable style={styles.card}>
-          {memory.photo_paths.length ? (
-            <View style={styles.strip}>
-              {memory.photo_paths.slice(0, extra > 0 ? 2 : 3).map((path) =>
-                urls?.[path] ? (
-                  <Image key={path} source={{ uri: urls[path] }} style={styles.photo} contentFit="cover" transition={150} />
-                ) : (
-                  <View key={path} style={[styles.photo, { backgroundColor: tint(color, 0.6) }]} />
-                ),
-              )}
-              {extra > 0 ? (
-                <View style={[styles.photo, styles.more]}>
-                  <T style={{ fontFamily: fonts.semibold, color: colors.inkSoft }}>+{extra + 1}</T>
-                </View>
-              ) : null}
-            </View>
-          ) : null}
-          <View style={{ gap: 6 }}>
-            <T variant="heading" style={{ fontSize: 18 }} numberOfLines={1}>
+          <View style={styles.stack}>
+            {shown.length ? (
+              shown.map((path, i) => (
+                <Polaroid
+                  key={path}
+                  uri={urls?.[path]}
+                  color={color}
+                  width={78}
+                  rotate={FAN[i + 3 - shown.length] * flip}
+                  tape={i === shown.length - 1}
+                  style={{ position: 'absolute', left: 8 + i * 6, top: 6 + i * 2 }}
+                />
+              ))
+            ) : (
+              <Polaroid
+                color={color}
+                width={78}
+                rotate={-4 * flip}
+                icon={memory.kind === 'trip' ? 'navigation' : 'camera'}
+                style={{ position: 'absolute', left: 14, top: 8 }}
+              />
+            )}
+            {extra > 0 ? <MoreSticker count={extra} color={color} style={styles.more} /> : null}
+          </View>
+          <View style={{ flex: 1, gap: 8 }}>
+            <T variant="heading" style={{ fontSize: 18 }} numberOfLines={2}>
               {memory.title}
             </T>
             <View style={styles.chips}>
@@ -104,33 +120,44 @@ function TimelineItem({ memory, urls }: { memory: MemorySummary; urls: Record<st
   );
 }
 
-const styles = StyleSheet.create({
-  yearRow: { flexDirection: 'row', alignItems: 'center', gap: 12 },
-  year: { fontFamily: fonts.displayHeavy, fontSize: 44, lineHeight: 48, letterSpacing: -1.5, color: colors.accent },
-  rule: { flex: 1, height: 1, backgroundColor: colors.line },
-  thread: { paddingLeft: 28, gap: 18 },
-  line: { position: 'absolute', left: 8, top: 6, bottom: 0, width: 2, backgroundColor: colors.line },
-  month: { fontFamily: fonts.semibold, fontSize: 12, letterSpacing: 0.6, color: colors.inkSoft },
-  dot: {
-    position: 'absolute',
-    left: -26,
-    top: 16,
-    width: 14,
-    height: 14,
-    borderRadius: 7,
-    borderWidth: 3,
-    borderColor: colors.cream,
-  },
-  card: {
-    padding: 12,
-    gap: 10,
-    borderRadius: radius.lg,
-    backgroundColor: colors.paper,
-    borderWidth: 1,
-    borderColor: colors.line,
-  },
-  strip: { flexDirection: 'row', gap: 6 },
-  photo: { flex: 1, height: 88, borderRadius: radius.sm },
-  more: { alignItems: 'center', justifyContent: 'center', backgroundColor: colors.muted },
-  chips: { flexDirection: 'row', flexWrap: 'wrap', gap: 6 },
-});
+const styles = themed(() =>
+  StyleSheet.create({
+    yearRow: { flexDirection: 'row', alignItems: 'center', gap: 12 },
+    year: { fontFamily: fonts.displayHeavy, fontSize: 44, lineHeight: 48, letterSpacing: -1.5, color: colors.accent },
+    rule: { flex: 1, height: 1, backgroundColor: colors.line },
+    thread: { paddingLeft: 28, gap: 18 },
+    line: { position: 'absolute', left: 8, top: 6, bottom: 0, width: 2, backgroundColor: colors.line },
+    monthPill: {
+      alignSelf: 'flex-start',
+      paddingHorizontal: 10,
+      paddingVertical: 4,
+      borderRadius: radius.pill,
+      backgroundColor: tint(colors.accent, 0.88),
+    },
+    month: { fontFamily: fonts.semibold, fontSize: 12, letterSpacing: 0.6, color: colors.accent },
+    dot: {
+      position: 'absolute',
+      left: -28,
+      top: 44,
+      width: 18,
+      height: 18,
+      borderRadius: 9,
+      borderWidth: 4,
+      borderColor: colors.paper,
+      zIndex: 1,
+    },
+    card: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 14,
+      padding: 14,
+      borderRadius: 24,
+      backgroundColor: colors.paper,
+      ...cardShadow,
+    },
+    // Zone fixe pour la pile de polaroïds (positionnés en absolu).
+    stack: { width: 112, height: 118 },
+    more: { position: 'absolute', right: 0, bottom: 4 },
+    chips: { flexDirection: 'row', flexWrap: 'wrap', gap: 6 },
+  }),
+);

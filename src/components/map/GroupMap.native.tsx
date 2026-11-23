@@ -3,7 +3,7 @@ import { useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, StyleSheet, View } from 'react-native';
 
 import { ErrorText } from '@/components/ui';
-import { colors } from '@/lib/theme';
+import { colors, themed } from '@/lib/theme';
 
 import { focusTarget, layerBounds, ROUTE_LAYOUT, ROUTE_PAINT, routesGeoJSON, useGroupMarkers } from './markers';
 import { usePastelStyle } from './pastelStyle';
@@ -23,10 +23,11 @@ export function GroupMap(props: GroupMapProps) {
   useEffect(() => {
     const target = focusTarget(props, zoom);
     if (!target) return;
-    camera.current?.easeTo({
+    // flyTo : dézoome puis rezoome quand on passe d'une ville à l'autre (swipe de fiche).
+    camera.current?.flyTo({
       ...target,
       padding: { top: topInset, bottom: bottomInset, left: 0, right: 0 },
-      duration: 450,
+      duration: 900,
     });
     // On ne recentre que lorsque la sélection change, pas à chaque zoom.
   }, [selectedId, selectedMemoryId]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -87,6 +88,8 @@ export function GroupMap(props: GroupMapProps) {
   );
 }
 
-const styles = StyleSheet.create({
-  center: { ...StyleSheet.absoluteFill, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.cream },
-});
+const styles = themed(() =>
+  StyleSheet.create({
+    center: { ...StyleSheet.absoluteFill, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.cream },
+  }),
+);

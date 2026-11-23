@@ -115,12 +115,19 @@ export type Address = {
 
 export type AddressInput = Pick<Address, 'line1' | 'city'> & Partial<Pick<Address, 'line2' | 'postal_code' | 'country'>>;
 
-/** Notes privées sur un·e ami·e : visibles uniquement par leur auteur. */
-export type FriendNote = {
+/** Note privée sur un·e ami·e (autant qu'on veut) : visible uniquement par son auteur. */
+export type FriendNoteKind = 'note' | 'gift' | 'address';
+
+export type FriendPrivateNote = {
+  id: string;
   friend_id: string;
-  gift_ideas: string | null;
-  notes: string | null;
+  kind: FriendNoteKind;
+  body: string;
+  created_at: string;
+  updated_at: string;
 };
+
+export type FriendNoteInput = Pick<FriendPrivateNote, 'kind' | 'body'>;
 
 export type MemoryKind = 'memory' | 'trip';
 
@@ -150,7 +157,31 @@ export type MemorySummary = Memory & {
   stops: MemoryStop[];
 };
 
-export type MemoryPhoto = { id: string; memory_id: string; path: string; uploaded_by: string; created_at: string };
+export type MemoryPhoto = {
+  id: string;
+  memory_id: string;
+  path: string;
+  uploaded_by: string;
+  created_at: string;
+  /** Date de la photo (facultative), distincte de la date du souvenir. */
+  taken_on: string | null;
+  caption: string | null;
+};
+
+export type PhotoLike = { photo_id: string; user_id: string };
+
+/** Commentaire sous une photo ; même forme qu'un commentaire de souvenir. */
+export type PhotoComment = Omit<MemoryComment, 'memory_id'> & { photo_id: string };
+
+/** Commentaire sur un souvenir. `author` est null si son profil ne m'est pas visible (pas de groupe en commun). */
+export type MemoryComment = {
+  id: string;
+  memory_id: string;
+  author_id: string;
+  body: string;
+  created_at: string;
+  author: Pick<Profile, 'id' | 'display_name' | 'avatar_url' | 'pin_color'> | null;
+};
 
 export type MemoryInput = {
   kind: MemoryKind;

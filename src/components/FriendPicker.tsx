@@ -1,6 +1,6 @@
 import { Pressable, StyleSheet, View } from 'react-native';
 
-import { colors, fonts, radius, tint } from '@/lib/theme';
+import { colors, fonts, radius, themed, tint } from '@/lib/theme';
 import type { Friend } from '@/lib/types';
 
 import { Avatar } from './Avatar';
@@ -40,19 +40,21 @@ export function FriendPicker({ friends, selected, onChange }: Props) {
   );
 }
 
-const styles = StyleSheet.create({
-  row: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
-  chip: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    paddingLeft: 4,
-    paddingRight: 12,
-    paddingVertical: 4,
-    borderRadius: radius.pill,
-    borderWidth: 1,
-    borderColor: colors.line,
-    backgroundColor: colors.paper,
-  },
-  chipOn: { borderColor: colors.accent, backgroundColor: tint(colors.accent, 0.9) },
-});
+const styles = themed(() =>
+  StyleSheet.create({
+    row: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
+    chip: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 8,
+      paddingLeft: 4,
+      paddingRight: 12,
+      paddingVertical: 4,
+      borderRadius: radius.pill,
+      borderWidth: 1,
+      borderColor: colors.line,
+      backgroundColor: colors.paper,
+    },
+    chipOn: { borderColor: colors.accent, backgroundColor: tint(colors.accent, 0.9) },
+  }),
+);

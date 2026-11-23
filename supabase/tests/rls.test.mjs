@@ -105,6 +105,20 @@ await expectOk('A upserts note (PostgREST style)', A, `insert into friend_notes(
 await expectOk('B cannot read notes about him', B, `select * from friend_notes`, r=>r.length===0);
 await expectErr('A cannot note an outsider', A, `insert into friend_notes(author_id,friend_id,notes) values ('${A}','${C}','x')`);
 await expectErr('A cannot forge a note as B', A, `insert into friend_notes(author_id,friend_id,notes) values ('${B}','${A}','x')`);
+// Notes privées multiples (friend_private_notes) : visibles et modifiables uniquement par leur auteur.
+const [{id: pn1}] = await expectOk('A adds gift note on B', A, `insert into friend_private_notes(friend_id,kind,body) values ('${B}','gift','un vinyle') returning id`);
+await expectOk('A adds address note on B', A, `insert into friend_private_notes(friend_id,kind,body) values ('${B}','address','3 rue du Port, Nantes')`);
+await expectOk('A sees her 2 notes', A, `select kind from friend_private_notes where friend_id='${B}'`, r=>r.length===2);
+await expectOk('B cannot read notes about him', B, `select * from friend_private_notes`, r=>r.length===0);
+await expectErr('A cannot note an outsider (multi)', A, `insert into friend_private_notes(friend_id,body) values ('${C}','x')`);
+await expectErr('A cannot forge a note as B (multi)', A, `insert into friend_private_notes(author_id,friend_id,body) values ('${B}','${A}','x')`);
+await expectErr('bad kind rejected', A, `insert into friend_private_notes(friend_id,kind,body) values ('${B}','secret','x')`);
+await expectErr('empty note rejected', A, `insert into friend_private_notes(friend_id,body) values ('${B}','  ')`);
+await expectOk('A edits her note', A, `update friend_private_notes set body='deux vinyles', kind='gift' where id='${pn1}' returning body`, r=>r[0]?.body==='deux vinyles');
+await expectErr('A cannot move note to another friend', A, `update friend_private_notes set friend_id='${C}' where id='${pn1}'`);
+await expectOk('B cannot edit A note (no-op)', B, `update friend_private_notes set body='hack' where id='${pn1}' returning *`, r=>r.length===0);
+await expectOk('B cannot delete A note (no-op)', B, `delete from friend_private_notes where id='${pn1}' returning *`, r=>r.length===0);
+await expectOk('A deletes her note', A, `delete from friend_private_notes where id='${pn1}' returning *`, r=>r.length===1);
 
 const [{create_memory: m1}] = await expectOk('A creates duo trip with B', A, `select create_memory('Road trip Lisbonne','trip','Trop bien','Lisbonne','2025-07-01','2025-07-10',null,array['${B}']::uuid[])`);
 await expectOk('B sees the trip', B, `select title, kind from memories where id='${m1}'`, r=>r.length===1 && r[0].kind==='trip');
@@ -130,6 +144,35 @@ await expectErr('photo path must match memory', B, `insert into memory_photos(me
 await expectErr('bad folder name rejected', B, `insert into storage.objects(bucket_id,name) values ('memories','not-a-uuid/x.jpg')`);
 await expectOk('C cannot list trip photos', C, `select * from storage.objects where bucket_id='memories'`, r=>r.length===0);
 await expectOk('A (author) sees B photo', A, `select * from memory_photos where memory_id='${m1}'`, r=>r.length===1);
+// Tout le groupe ajoute des photos au souvenir d'un autre membre.
+await expectOk('A (group member) uploads to B group memory', A, `insert into storage.objects(bucket_id,name) values ('memories','${m2}/a1.jpg')`);
+const [{id: pa}] = await expectOk('A registers photo on B group memory', A, `insert into memory_photos(memory_id,path) values ('${m2}','${m2}/a1.jpg') returning id`);
+// Date et légende d'une photo.
+const [{id: pb}] = await expectOk('get B photo id', B, `select id from memory_photos where path='${m1}/b1.jpg'`, r=>r.length===1);
+await expectOk('B (uploader) dates and captions his photo', B, `update memory_photos set taken_on='2025-07-03', caption='Coucher de soleil' where id='${pb}' returning caption`, r=>r[0]?.caption==='Coucher de soleil');
+await expectOk('A (memory author) edits caption too', A, `update memory_photos set caption='Belém au coucher du soleil' where id='${pb}' returning caption`, r=>r.length===1);
+await expectOk('B (memory author) captions A photo', B, `update memory_photos set caption='Photo de groupe' where id='${pa}' returning caption`, r=>r.length===1);
+await expectOk('C cannot caption (no-op)', C, `update memory_photos set caption='hack' where id='${pb}' returning *`, r=>r.length===0);
+await expectErr('nobody can move a photo to another path', B, `update memory_photos set path='${m1}/x.jpg' where id='${pb}'`);
+await expectErr('caption too long rejected', B, `update memory_photos set caption=repeat('a',501) where id='${pb}'`);
+// Likes.
+await expectOk('A likes B photo', A, `insert into memory_photo_likes(photo_id) values ('${pb}')`);
+await expectErr('A cannot like twice', A, `insert into memory_photo_likes(photo_id) values ('${pb}')`);
+await expectOk('B likes his photo', B, `insert into memory_photo_likes(photo_id) values ('${pb}')`);
+await expectOk('B sees 2 likes', B, `select * from memory_photo_likes where photo_id='${pb}'`, r=>r.length===2);
+await expectErr('C cannot like', C, `insert into memory_photo_likes(photo_id,user_id) values ('${pb}','${C}')`);
+await expectErr('B cannot like as A', B, `insert into memory_photo_likes(photo_id,user_id) values ('${pa}','${A}')`);
+await expectOk('C sees no likes', C, `select * from memory_photo_likes`, r=>r.length===0);
+await expectOk('B cannot remove A like (no-op)', B, `delete from memory_photo_likes where photo_id='${pb}' and user_id='${A}' returning *`, r=>r.length===0);
+await expectOk('A unlikes', A, `delete from memory_photo_likes where photo_id='${pb}' and user_id='${A}' returning *`, r=>r.length===1);
+// Commentaires sous une photo.
+const [{id: pc}] = await expectOk('A comments B photo', A, `insert into memory_photo_comments(photo_id,body) values ('${pb}','Magnifique') returning id`);
+await expectOk('B sees the photo comment', B, `select body from memory_photo_comments where photo_id='${pb}'`, r=>r.length===1);
+await expectErr('C cannot comment the photo', C, `insert into memory_photo_comments(photo_id,body) values ('${pb}','x')`);
+await expectOk('C sees no photo comments', C, `select * from memory_photo_comments`, r=>r.length===0);
+await expectErr('photo comment cannot be edited', A, `update memory_photo_comments set body='x' where id='${pc}'`);
+await expectOk('B (not author of trip) cannot delete A comment (no-op)', B, `delete from memory_photo_comments where id='${pc}' returning *`, r=>r.length===0);
+await expectOk('A comments again', A, `insert into memory_photo_comments(photo_id,body) values ('${pb}','On y retourne ?')`);
 await expectOk('get_memories for A: 2', A, `select * from get_memories()`, r=>r.length===2);
 await expectOk('get_memories filtered by friend B', A, `select title, photo_count, cover_path, people from get_memories(null,'${B}')`, r=>r.length===2 && r.some(m=>Number(m.photo_count)===1 && m.cover_path===`${m1}/b1.jpg`));
 await expectOk('get_memories filtered by group', A, `select * from get_memories('${g2}')`, r=>r.length===1);
@@ -145,6 +188,19 @@ await expectErr('bad latitude rejected', A, `select set_memory_stops('${m1}', '[
 await expectOk('get_memories returns stops + photo paths', A, `select stops, photo_paths from get_memories() where id='${m1}'`, r=>r.length===1 && r[0].stops.length===2 && r[0].stops[1].name==='Porto' && r[0].photo_paths.length===1);
 await expectOk('A replaces stops', A, `select set_memory_stops('${m1}', '[{"name":"Madrid","country_code":"ES","lat":40.4,"lng":-3.7}]'::jsonb)`);
 await expectOk('only the new stop remains', B, `select name from memory_stops where memory_id='${m1}'`, r=>r.length===1 && r[0].name==='Madrid');
+// Commentaires : l'audience du souvenir commente ; l'auteur du commentaire ou du souvenir supprime.
+const [{id: c1}] = await expectOk('B comments A trip', B, `insert into memory_comments(memory_id,body) values ('${m1}','Meilleur voyage !') returning id`);
+await expectOk('A sees B comment', A, `select body, author_id from memory_comments where memory_id='${m1}'`, r=>r.length===1 && r[0].author_id===B);
+await expectOk('C cannot see comments', C, `select * from memory_comments`, r=>r.length===0);
+await expectErr('C cannot comment A trip', C, `insert into memory_comments(memory_id,body) values ('${m1}','x')`);
+await expectErr('B cannot comment as A', B, `insert into memory_comments(memory_id,author_id,body) values ('${m1}','${A}','x')`);
+await expectErr('empty comment rejected', B, `insert into memory_comments(memory_id,body) values ('${m1}','   ')`);
+await expectErr('B cannot edit comment', B, `update memory_comments set body='edited' where id='${c1}'`);
+const [{id: c2}] = await expectOk('A comments her trip', A, `insert into memory_comments(memory_id,body) values ('${m1}','Merci 🥹') returning id`);
+await expectOk('B cannot delete A comment (no-op)', B, `delete from memory_comments where id='${c2}' returning *`, r=>r.length===0);
+await expectOk('A (memory author) deletes B comment', A, `delete from memory_comments where id='${c1}' returning *`, r=>r.length===1);
+await expectOk('A deletes own comment', A, `delete from memory_comments where id='${c2}' returning *`, r=>r.length===1);
+await expectOk('B comments again (kept for cascade test)', B, `insert into memory_comments(memory_id,body) values ('${m1}','À refaire')`);
 await expectOk('A (author) deletes B photo', A, `delete from storage.objects where bucket_id='memories' and name='${m1}/b1.jpg' returning *`, r=>r.length===1);
 
 // Quand B quitte le groupe, l'adresse partagée et les souvenirs de groupe disparaissent pour lui.
@@ -155,6 +211,12 @@ await expectOk('B no longer sees A group memory', B, `select * from memories whe
 await expectOk('B still sees his own group memory (author)', B, `select * from memories where id='${m2}'`, r=>r.length===1);
 await expectOk('B still sees duo trip (tagged)', B, `select * from memories where id='${m1}'`, r=>r.length===1);
 await expectOk('A deletes her trip', A, `delete from memories where id='${m1}' returning *`, r=>r.length===1);
+await expectOk('comments deleted with the trip', A, `select * from memory_comments where memory_id='${m1}'`, r=>r.length===0);
+await expectOk('photo likes/comments deleted with the trip', A, `select (select count(*) from memory_photo_likes) + (select count(*) from memory_photo_comments) as n`, r=>Number(r[0].n)===0);
 await expectErr('anon cannot read memories', null, `select * from memories`);
 await expectErr('anon cannot read addresses', null, `select * from addresses`);
+await expectErr('anon cannot read comments', null, `select * from memory_comments`);
+await expectErr('anon cannot read private notes', null, `select * from friend_private_notes`);
+await expectErr('anon cannot read photo likes', null, `select * from memory_photo_likes`);
+await expectErr('anon cannot read photo comments', null, `select * from memory_photo_comments`);
 console.log(fails ? `\n${fails} FAILED` : '\nALL PASSED');
